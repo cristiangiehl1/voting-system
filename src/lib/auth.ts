@@ -23,7 +23,7 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({ where: { email } })
         if (!user) return null
 
-        const teamPassword = process.env.AUTH_SECRET?.slice(0, 8)
+        const teamPassword = process.env.TEAM_PASSWORD
         if (password !== teamPassword) return null
 
         return user

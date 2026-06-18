@@ -8,7 +8,7 @@ export async function registerUser(name: string, email: string, password: string
     return { error: "Todos os campos são obrigatórios" } as const
   }
 
-  const teamPassword = process.env.AUTH_SECRET?.slice(0, 8)
+  const teamPassword = process.env.TEAM_PASSWORD
   if (password !== teamPassword) {
     return { error: "Senha do time inválida" } as const
   }
