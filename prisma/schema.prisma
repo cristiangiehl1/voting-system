@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts         Account[]
+  sessions         Session[]
+  votes            Vote[]            @relation("Voter")
+  rankings         Ranking[]
+  userAchievements UserAchievement[]
+  userStats        UserStats?
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Ranking {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  createdById String
+
+  createdBy  User        @relation(fields: [createdById], references: [id])
+  candidates Candidate[]
+}
+
+model Candidate {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  avatar    String?
+  createdAt DateTime @default(now())
+  rankingId String
+
+  ranking Ranking @relation(fields: [rankingId], references: [id], onDelete: Cascade)
+  votes   Vote[]
+}
+
+model Vote {
+  id          String      @id @default(cuid())
+  voterId     String
+  candidateId String
+  comment     String?
+  createdAt   DateTime    @default(now())
+
+  voter      User        @relation("Voter", fields: [voterId], references: [id], onDelete: Cascade)
+  candidate  Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  voteLabels VoteLabel[]
+
+  @@unique([voterId, candidateId])
+}
+
+model Label {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  icon       String?
+  color      String?
+  createdAt  DateTime    @default(now())
+  voteLabels VoteLabel[]
+}
+
+model VoteLabel {
+  voteId  String
+  labelId String
+
+  vote  Vote  @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([voteId, labelId])
+}
+
+model Achievement {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  name        String
+  description String
+  icon        String?
+  category    String
+  threshold   Int?
+  createdAt   DateTime          @default(now())
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  userId        String
+  achievementId String
+  unlockedAt    DateTime    @default(now())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, achievementId])
+}
+
+model UserStats {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  totalVotes    Int       @default(0)
+  totalComments Int       @default(0)
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastVoteDate  DateTime?
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
