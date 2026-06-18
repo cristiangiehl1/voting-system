@@ -20,7 +20,7 @@ export default async function ProfilePage() {
 
   return (
     <ProfileContent
-      user={{ name: session.user.name, email: session.user.email, image: session.user.image }}
+      user={{ name: session.user.name ?? null, email: session.user.email ?? null, image: session.user.image ?? null }}
       stats={userStats ? {
         totalVotes: userStats.totalVotes,
         totalComments: userStats.totalComments,
