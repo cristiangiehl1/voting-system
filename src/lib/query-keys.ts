@@ -1,8 +1,8 @@
 export const queryKeys = {
-  rankings: ["rankings"] as const,
-  ranking: (id: string) => ["ranking", id] as const,
-  candidates: (rankingId: string) => ["candidates", rankingId] as const,
-  labels: ["labels"] as const,
-  leaderboard: (rankingId: string) => ["leaderboard", rankingId] as const,
-  myVotes: (rankingId: string) => ["my-votes", rankingId] as const,
+  lists: ["lists"] as const,
+  list: (id: string) => ["list", id] as const,
+  options: (listId: string) => ["options", listId] as const,
+  participants: (listId: string) => ["participants", listId] as const,
+  myVotes: (listId: string) => ["my-votes", listId] as const,
+  results: (listId: string) => ["results", listId] as const,
 }

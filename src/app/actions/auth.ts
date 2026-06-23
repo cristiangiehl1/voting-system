@@ -1,28 +1,25 @@
 "use server"
 
-import { prisma } from "@/lib/prisma"
-import { fetchRandomMeme } from "@/lib/meme"
+import { hash } from "bcryptjs"
+import { findUserByEmail, createUser } from "@/lib/repositories/user.repository"
 
 export async function registerUser(name: string, email: string, password: string) {
   if (!name || !email || !password) {
     return { error: "Todos os campos são obrigatórios" } as const
   }
 
-  const teamPassword = process.env.TEAM_PASSWORD
-  if (password !== teamPassword) {
-    return { error: "Senha do time inválida" } as const
+  if (password.length < 6) {
+    return { error: "A senha deve ter pelo menos 6 caracteres" } as const
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } })
+  const existing = await findUserByEmail(email)
   if (existing) {
     return { error: "Este email já está registrado" } as const
   }
 
-  const avatar = await fetchRandomMeme()
+  const passwordHash = await hash(password, 10)
 
-  await prisma.user.create({
-    data: { email, name, image: avatar },
-  })
+  await createUser({ email, name, passwordHash })
 
   return { success: true } as const
 }

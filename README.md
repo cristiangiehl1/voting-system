@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Voting Lists
 
-## Getting Started
+Sistema de criação de listas para votação. Cada usuário pode criar listas, adicionar participantes, cadastrar candidatos (pessoas, objetos, filmes, etc.) e acompanhar os resultados em tempo real. As listas podem ter uma data de expiração ou permanecer abertas indefinidamente.
 
-First, run the development server:
+## Tecnologias
+
+- [Next.js](https://nextjs.org)
+- [TypeScript](https://www.typescriptlang.org)
+- [Prisma](https://www.prisma.io)
+- [PostgreSQL](https://www.postgresql.org)
+- [Tailwind CSS](https://tailwindcss.com)
+- [shadcn/ui](https://ui.shadcn.com)
+- [NextAuth.js](https://next-auth.js.org)
+
+## Começando
+
+1. Copie o arquivo de variáveis de ambiente:
+
+```bash
+cp .env.example .env
+```
+
+2. Inicie o banco de dados (opcional, requer Docker):
+
+```bash
+docker compose up -d
+```
+
+3. Instale as dependências:
+
+```bash
+npm install
+```
+
+4. Execute as migrations e o seed:
+
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+5. Inicie o servidor de desenvolvimento:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra [http://localhost:3000](http://localhost:3000) no navegador.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Funcionalidades
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Criação de listas de votação com nome, descrição e data de expiração opcional
+- Convite de participantes por email
+- Cadastro de candidatos
+- Votação restrita aos participantes da lista
+- Resultados com ranking e percentuais
+- Suporte a temas claro e escuro
 
-## Learn More
+## Scripts úteis
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev` - Inicia o servidor de desenvolvimento
+- `npm run build` - Gera o build de produção
+- `npm run db:migrate` - Executa as migrations do Prisma
+- `npm run db:seed` - Popula o banco com dados iniciais
+- `npm run db:studio` - Abre o Prisma Studio
