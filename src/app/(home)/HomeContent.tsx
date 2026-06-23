@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Users, Clock, ListChecks, CalendarDays, ArrowRight, ListOrdered } from "lucide-react"
+import { Plus, Users, Clock, ListChecks, CalendarDays, ArrowRight, ListOrdered, ImageIcon } from "lucide-react"
 import { toast } from "sonner"
 import { AnimatedHero } from "@/components/AnimatedHero"
 import { AnimatedCard } from "@/components/AnimatedCard"
@@ -331,12 +331,16 @@ function ListCard({ list }: { list: ListData }) {
 
   return (
     <Link href={`/lists/${list.id}`}>
-      <AnimatedCard className="group h-full cursor-pointer">
-        {list.imageUrl && (
-          <div className="overflow-hidden rounded-t-xl">
-            <img src={list.imageUrl} alt={list.name} className="h-36 w-full object-cover" />
-          </div>
-        )}
+      <AnimatedCard className="group h-full cursor-pointer pt-0">
+        <div className="overflow-hidden rounded-t-xl">
+          {list.imageUrl ? (
+            <img src={list.imageUrl} alt={list.name} className="h-56 w-full object-cover" />
+          ) : (
+            <div className="flex h-56 w-full items-center justify-center bg-muted">
+              <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
+            </div>
+          )}
+        </div>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-3">
             <CardTitle className="line-clamp-1 text-lg">{list.name}</CardTitle>

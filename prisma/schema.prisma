@@ -56,13 +56,14 @@ model Participant {
 }
 
 model Option {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  imageId     String?
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  listId      String
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  referenceUrl  String?
+  imageId       String?
+  imageUrl      String?
+  createdAt     DateTime @default(now())
+  listId        String
 
   list  VotingList @relation(fields: [listId], references: [id], onDelete: Cascade)
   votes Vote[]

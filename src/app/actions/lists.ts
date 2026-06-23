@@ -185,6 +185,7 @@ export async function createOption(
   name: string,
   listId: string,
   description?: string,
+  referenceUrl?: string,
   imageId?: string,
   imageUrl?: string
 ) {
@@ -198,6 +199,7 @@ export async function createOption(
   await createOptionRepository({
     name,
     description: description || undefined,
+    referenceUrl: referenceUrl || undefined,
     imageId: imageId || undefined,
     imageUrl: imageUrl || undefined,
     listId,
@@ -241,6 +243,7 @@ export async function updateOption(
   data: {
     name?: string
     description?: string
+    referenceUrl?: string
     imageId?: string
     imageUrl?: string
   }
@@ -255,6 +258,7 @@ export async function updateOption(
   await updateOptionRepository(optionId, {
     name: data.name,
     description: data.description,
+    referenceUrl: data.referenceUrl,
     imageId: data.imageId,
     imageUrl: data.imageUrl,
   })

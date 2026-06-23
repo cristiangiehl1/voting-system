@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Trophy, Medal, Crown, Frown, ListOrdered } from "lucide-react"
+import { ArrowLeft, Trophy, Medal, Crown, Frown, ListOrdered, ExternalLink } from "lucide-react"
 import { getResults, getList } from "@/app/actions/lists"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { AnimatedCounter } from "@/components/AnimatedCounter"
@@ -33,6 +33,38 @@ const POSITION_ICONS: Record<number, React.ReactNode> = {
 }
 
 const BAR_COLORS = ["#60a5fa", "#a78bfa", "#f472b6", "#34d399", "#fbbf24", "#f87171"]
+
+const KNOWN_SITES: Record<string, string> = {
+  "steampowered.com": "Steam",
+  "store.steampowered.com": "Steam",
+  "imdb.com": "IMDb",
+  "rottentomatoes.com": "Rotten Tomatoes",
+  "github.com": "GitHub",
+  "myanimelist.net": "MyAnimeList",
+  "letterboxd.com": "Letterboxd",
+  "spotify.com": "Spotify",
+  "open.spotify.com": "Spotify",
+  "youtube.com": "YouTube",
+  "netflix.com": "Netflix",
+  "amazon.com": "Amazon",
+  "amazon.com.br": "Amazon",
+  "twitch.tv": "Twitch",
+  "goodreads.com": "Goodreads",
+  "wikipedia.org": "Wikipedia",
+  "discord.com": "Discord",
+  "steamcommunity.com": "Steam",
+}
+
+function getReferenceLabel(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "")
+    const known = KNOWN_SITES[hostname]
+    if (known) return known
+    return hostname.split(".")[0].charAt(0).toUpperCase() + hostname.split(".")[0].slice(1)
+  } catch {
+    return "Link"
+  }
+}
 
 export default function ResultsPage() {
   const params = useParams()
@@ -122,7 +154,21 @@ export default function ResultsPage() {
                     )}
 
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-semibold">{option.name}</p>
+                      <p className="truncate font-semibold">
+                        {option.name}
+                        {option.referenceUrl && (
+                          <a
+                            href={option.referenceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                            title={option.referenceUrl}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            {getReferenceLabel(option.referenceUrl)}
+                          </a>
+                        )}
+                      </p>
                       <p className="text-xs text-muted-foreground line-clamp-1">
                         {option.description || "Sem descrição"}
                       </p>

@@ -8,6 +8,7 @@ export async function findOptionsByListId(
     id: string
     name: string
     description: string | null
+    referenceUrl: string | null
     imageId: string | null
     imageUrl: string | null
     createdAt: Date
@@ -41,6 +42,7 @@ export async function findOptionsByListId(
       id: string
       name: string
       description: string | null
+      referenceUrl: string | null
       imageId: string | null
       imageUrl: string | null
       createdAt: Date
@@ -67,6 +69,7 @@ export async function findOptionById(id: string) {
 export async function createOption(data: {
   name: string
   description?: string
+  referenceUrl?: string
   imageId?: string
   imageUrl?: string
   listId: string
@@ -79,6 +82,7 @@ export async function updateOption(
   data: {
     name?: string
     description?: string
+    referenceUrl?: string
     imageId?: string
     imageUrl?: string
   }

@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useSession } from "next-auth/react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ export function ProfileContent({
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  const { update: updateSession } = useSession()
 
   const nameForm = useForm<UpdateProfileData>({
     resolver: zodResolver(updateProfileSchema),
@@ -51,6 +53,7 @@ export function ProfileContent({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.lists })
+      updateSession()
       toast.success("Nome atualizado")
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar nome"),
@@ -62,6 +65,7 @@ export function ProfileContent({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.lists })
+      updateSession()
       toast.success("Foto atualizada")
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar foto"),

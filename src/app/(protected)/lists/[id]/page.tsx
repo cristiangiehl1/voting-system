@@ -38,8 +38,12 @@ import {
   EyeOff,
   ListOrdered,
   Pencil,
+  ExternalLink,
+  ImageIcon,
+  ArrowRight,
 } from "lucide-react"
 import {
+  getMyLists,
   getList,
   getOptions,
   getParticipants,
@@ -68,6 +72,38 @@ import {
   type UpdateListData,
 } from "@/lib/schemas"
 import gsap from "gsap"
+
+const KNOWN_SITES: Record<string, string> = {
+  "steampowered.com": "Steam",
+  "store.steampowered.com": "Steam",
+  "imdb.com": "IMDb",
+  "rottentomatoes.com": "Rotten Tomatoes",
+  "github.com": "GitHub",
+  "myanimelist.net": "MyAnimeList",
+  "letterboxd.com": "Letterboxd",
+  "spotify.com": "Spotify",
+  "open.spotify.com": "Spotify",
+  "youtube.com": "YouTube",
+  "netflix.com": "Netflix",
+  "amazon.com": "Amazon",
+  "amazon.com.br": "Amazon",
+  "twitch.tv": "Twitch",
+  "goodreads.com": "Goodreads",
+  "wikipedia.org": "Wikipedia",
+  "discord.com": "Discord",
+  "steamcommunity.com": "Steam",
+}
+
+function getReferenceLabel(url: string): string {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, "")
+    const known = KNOWN_SITES[hostname]
+    if (known) return known
+    return hostname.split(".")[0].charAt(0).toUpperCase() + hostname.split(".")[0].slice(1)
+  } catch {
+    return "Link"
+  }
+}
 
 function formatDate(date: Date | string | null) {
   if (!date) return null
@@ -127,6 +163,16 @@ export default function ListPage() {
     enabled: !!listId && !!session?.user?.id,
   })
 
+  const { data: userLists = [] } = useQuery({
+    queryKey: queryKeys.lists,
+    queryFn: () => getMyLists(),
+    enabled: !!session?.user?.id,
+  })
+
+  const currentIndex = userLists.findIndex((l) => l.id === listId)
+  const prevList = currentIndex > 0 ? userLists[currentIndex - 1] : null
+  const nextList = currentIndex >= 0 && currentIndex < userLists.length - 1 ? userLists[currentIndex + 1] : null
+
   useLayoutEffect(() => {
     if (!cardsRef.current) return
     const ctx = gsap.context(() => {
@@ -179,7 +225,7 @@ export default function ListPage() {
 
   const optionForm = useForm<CreateOptionData>({
     resolver: zodResolver(createOptionSchema),
-    defaultValues: { listId, name: "", description: "" },
+    defaultValues: { listId, name: "", description: "", referenceUrl: "" },
   })
 
   const participantForm = useForm<AddParticipantData>({
@@ -192,11 +238,11 @@ export default function ListPage() {
 
   const addOptionMutation = useMutation({
     mutationFn: async (data: CreateOptionData & { imageId?: string; imageUrl?: string }) => {
-      await createOption(data.name, data.listId, data.description, data.imageId, data.imageUrl)
+      await createOption(data.name, data.listId, data.description, data.referenceUrl, data.imageId, data.imageUrl)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
-      optionForm.reset({ listId, name: "", description: "" })
+      optionForm.reset({ listId, name: "", description: "", referenceUrl: "" })
       setOptionOpen(false)
       toast.success("Opção adicionada")
     },
@@ -318,14 +364,15 @@ export default function ListPage() {
   const [editOptionImageFile, setEditOptionImageFile] = useState<File | null>(null)
   const editOption = options.find((o) => o.id === editOptionId)
   const editOptionForm = useForm({
-    defaultValues: { name: "", description: "" },
+    defaultValues: { name: "", description: "", referenceUrl: "" },
   })
 
   const updateOptionMutation = useMutation({
-    mutationFn: async (data: { optionId: string; name: string; description?: string; imageId?: string; imageUrl?: string }) => {
+    mutationFn: async (data: { optionId: string; name: string; description?: string; referenceUrl?: string; imageId?: string; imageUrl?: string }) => {
       await updateOption(data.optionId, {
         name: data.name,
         description: data.description,
+        referenceUrl: data.referenceUrl,
         imageId: data.imageId,
         imageUrl: data.imageUrl,
       })
@@ -449,18 +496,36 @@ export default function ListPage() {
   return (
     <PageTransition>
       <div className="container mx-auto px-4 py-10">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar
           </Button>
+          <div className="flex items-center gap-2">
+            {prevList && (
+              <Button variant="outline" size="sm" onClick={() => router.push(`/lists/${prevList.id}`)}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {prevList.name}
+              </Button>
+            )}
+            {nextList && (
+              <Button variant="outline" size="sm" onClick={() => router.push(`/lists/${nextList.id}`)}>
+                {nextList.name}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
-        {list.imageUrl && (
-          <div className="mb-6 overflow-hidden rounded-xl">
-            <img src={list.imageUrl} alt={list.name} className="h-48 w-full object-cover" />
-          </div>
-        )}
+        <div className="mb-6 overflow-hidden rounded-xl">
+          {list.imageUrl ? (
+            <img src={list.imageUrl} alt={list.name} className="h-56 w-full object-cover" />
+          ) : (
+            <div className="flex h-56 w-full items-center justify-center bg-muted">
+              <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
+            </div>
+          )}
+        </div>
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -774,7 +839,7 @@ export default function ListPage() {
                           setOptionImageUploading(false)
                         }
 
-                        addOptionMutation.mutate({ ...data, imageId, imageUrl })
+                        addOptionMutation.mutate({ ...data, referenceUrl: data.referenceUrl || undefined, imageId, imageUrl })
                       })}
                       className="space-y-4"
                     >
@@ -820,6 +885,20 @@ export default function ListPage() {
                               className="h-40 w-full object-cover"
                             />
                           </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="optionReferenceUrl">Link de referência (opcional)</Label>
+                        <Input
+                          id="optionReferenceUrl"
+                          type="url"
+                          placeholder="https://www.imdb.com/title/tt0068646/"
+                          {...optionForm.register("referenceUrl")}
+                        />
+                        {(optionForm.watch("referenceUrl") ?? "") && (
+                          <p className="text-xs text-muted-foreground">
+                            {getReferenceLabel(optionForm.watch("referenceUrl") ?? "")}
+                          </p>
                         )}
                       </div>
                       <Button type="submit" className="w-full" disabled={addOptionMutation.isPending || optionImageUploading}>
@@ -929,11 +1008,16 @@ export default function ListPage() {
                     return (
                       <AnimatedCard
                         key={option.id}
-                        className={`translate-y-6 opacity-0 ${rank != null ? "border-primary/50 bg-primary/5" : ""}`}
+                        className={`translate-y-6 opacity-0 pt-0 ${rank != null ? "border-primary/50 bg-primary/5" : ""}`}
                       >
-                        {option.imageUrl && (
                           <div className="group relative overflow-hidden rounded-t-xl">
-                            <img src={option.imageUrl} alt={option.name} className="h-36 w-full object-cover" />
+                            {option.imageUrl ? (
+                              <img src={option.imageUrl} alt={option.name} className="h-56 w-full object-cover" />
+                            ) : (
+                              <div className="flex h-56 w-full items-center justify-center bg-muted">
+                                <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
+                              </div>
+                            )}
                             {isOwner && !expired && (
                               <button
                                 type="button"
@@ -944,15 +1028,29 @@ export default function ListPage() {
                               </button>
                             )}
                           </div>
-                        )}
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between gap-2">
-                            <CardTitle className="text-lg">{option.name}</CardTitle>
+                            <CardTitle className="text-lg">
+                              {option.name}
+                              {option.referenceUrl && (
+                                <a
+                                  href={option.referenceUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="ml-2 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                                  title={option.referenceUrl}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  {getReferenceLabel(option.referenceUrl)}
+                                </a>
+                              )}
+                            </CardTitle>
                             {isOwner && !expired && (
                               <button
                                 type="button"
                                 onClick={() => {
-                                  editOptionForm.reset({ name: option.name, description: option.description ?? "" })
+                                  editOptionForm.reset({ name: option.name, description: option.description ?? "", referenceUrl: option.referenceUrl ?? "" })
                                   setEditOptionId(option.id)
                                 }}
                                 className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
@@ -1039,11 +1137,16 @@ export default function ListPage() {
                   return (
                     <AnimatedCard
                       key={option.id}
-                      className={`translate-y-6 opacity-0 ${voted ? "border-primary/50 bg-primary/5" : ""}`}
+                      className={`translate-y-6 opacity-0 pt-0 ${voted ? "border-primary/50 bg-primary/5" : ""}`}
                     >
-                      {option.imageUrl && (
                         <div className="group relative overflow-hidden rounded-t-xl">
-                          <img src={option.imageUrl} alt={option.name} className="h-36 w-full object-cover" />
+                          {option.imageUrl ? (
+                            <img src={option.imageUrl} alt={option.name} className="h-56 w-full object-cover" />
+                          ) : (
+                            <div className="flex h-56 w-full items-center justify-center bg-muted">
+                              <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
+                            </div>
+                          )}
                           {isOwner && !expired && (
                             <button
                               type="button"
@@ -1054,15 +1157,29 @@ export default function ListPage() {
                             </button>
                           )}
                         </div>
-                      )}
                       <CardHeader className="pb-3">
                         <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="text-lg">{option.name}</CardTitle>
+                          <CardTitle className="text-lg">
+                            {option.name}
+                            {option.referenceUrl && (
+                              <a
+                                href={option.referenceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-2 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                                title={option.referenceUrl}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                {getReferenceLabel(option.referenceUrl)}
+                              </a>
+                            )}
+                          </CardTitle>
                           {isOwner && !expired && (
                             <button
                               type="button"
                               onClick={() => {
-                                editOptionForm.reset({ name: option.name, description: option.description ?? "" })
+                                editOptionForm.reset({ name: option.name, description: option.description ?? "", referenceUrl: option.referenceUrl ?? "" })
                                 setEditOptionId(option.id)
                               }}
                               className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
@@ -1188,6 +1305,7 @@ export default function ListPage() {
                       optionId: editOptionId!,
                       name: data.name,
                       description: data.description || undefined,
+                      referenceUrl: data.referenceUrl || undefined,
                       imageId,
                       imageUrl,
                     })
@@ -1224,6 +1342,20 @@ export default function ListPage() {
                         <img src={editOption.imageUrl} alt="Atual" className="h-40 w-full object-cover" />
                       </div>
                     ) : null}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="editOptionReferenceUrl">Link de referência (opcional)</Label>
+                    <Input
+                      id="editOptionReferenceUrl"
+                      type="url"
+                      placeholder="https://www.imdb.com/title/tt0068646/"
+                      {...editOptionForm.register("referenceUrl")}
+                    />
+                    {(editOptionForm.watch("referenceUrl") ?? "") && (
+                      <p className="text-xs text-muted-foreground">
+                        {getReferenceLabel(editOptionForm.watch("referenceUrl") ?? "")}
+                      </p>
+                    )}
                   </div>
                   <Button type="submit" className="w-full" disabled={updateOptionMutation.isPending || editImageUploading}>
                     {editImageUploading ? "Enviando imagem..." : updateOptionMutation.isPending ? "Salvando..." : "Salvar"}
