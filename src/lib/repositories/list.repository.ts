@@ -14,6 +14,7 @@ type ListWithCount = Array<{
   allowMultipleVotes: boolean
   rankedVoting: boolean
   maxRank: number
+  allowParticipantsToAddOptions: boolean
   _count: { options: number; participants: number }
   createdBy: { name: string | null; imageUrl: string | null }
 }>
@@ -32,6 +33,7 @@ type SingleListWithCount = {
   allowMultipleVotes: boolean
   rankedVoting: boolean
   maxRank: number
+  allowParticipantsToAddOptions: boolean
   _count: { options: number; participants: number }
   createdBy: { name: string | null; email: string | null; imageUrl: string | null }
 } | null
@@ -70,6 +72,7 @@ export async function createList(data: {
   allowMultipleVotes?: boolean
   rankedVoting?: boolean
   maxRank?: number
+  allowParticipantsToAddOptions?: boolean
 }) {
   return prisma.votingList.create({ data })
 }
@@ -86,6 +89,7 @@ export async function updateList(
     allowMultipleVotes?: boolean
     rankedVoting?: boolean
     maxRank?: number
+    allowParticipantsToAddOptions?: boolean
   }
 ) {
   return prisma.votingList.update({ where: { id }, data })

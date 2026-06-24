@@ -5,4 +5,6 @@ export const queryKeys = {
   participants: (listId: string) => ["participants", listId] as const,
   myVotes: (listId: string) => ["my-votes", listId] as const,
   results: (listId: string) => ["results", listId] as const,
+  invites: (listId: string) => ["invites", listId] as const,
+  myInvites: ["my-invites"] as const,
 }

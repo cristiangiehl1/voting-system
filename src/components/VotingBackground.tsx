@@ -22,18 +22,19 @@ export function VotingBackground() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.2
+    renderer.domElement.style.cssText = "display:block;width:100%;height:100%"
     container.appendChild(renderer.domElement)
 
     const bars: { mesh: THREE.Mesh; initialY: number; speed: number; offset: number; phase: number }[] = []
-    const barCount = 28
-    const spacing = 1.0
+    const barCount = 32
+    const spacing = 1.6
     const startX = -((barCount - 1) * spacing) / 2
 
-    const geometry = new THREE.BoxGeometry(0.5, 1, 0.5)
+    const geometry = new THREE.BoxGeometry(0.8, 1, 0.8)
     geometry.translate(0, 0.5, 0)
 
     for (let i = 0; i < barCount; i++) {
-      const height = 1.5 + Math.random() * 4
+      const height = 3 + Math.random() * 6
       const hue = 0.58 + (i / barCount) * 0.2
       const material = new THREE.MeshStandardMaterial({
         color: new THREE.Color().setHSL(hue, 0.6, 0.4),
@@ -44,20 +45,20 @@ export function VotingBackground() {
       })
 
       const mesh = new THREE.Mesh(geometry, material)
-      mesh.position.set(startX + i * spacing, -3, -8)
+      mesh.position.set(startX + i * spacing, -10, -12)
       mesh.scale.set(1, height, 1)
 
       scene.add(mesh)
       bars.push({
         mesh,
-        initialY: -3,
+        initialY: -10,
         speed: 0.4 + Math.random() * 0.6,
         offset: Math.random() * Math.PI * 2,
         phase: (i / barCount) * Math.PI * 2,
       })
     }
 
-    const torusGeo = new THREE.TorusKnotGeometry(1.2, 0.35, 128, 16)
+    const torusGeo = new THREE.TorusKnotGeometry(2.0, 0.5, 128, 16)
     const torusMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color().setHSL(0.62, 0.8, 0.5),
       transparent: true,
@@ -70,7 +71,7 @@ export function VotingBackground() {
     torus.position.set(0, 1, -4)
     scene.add(torus)
 
-    const innerRingGeo = new THREE.TorusGeometry(2.5, 0.04, 32, 64)
+    const innerRingGeo = new THREE.TorusGeometry(4, 0.06, 32, 64)
     const innerRingMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color().setHSL(0.65, 0.9, 0.6),
       transparent: true,
@@ -79,11 +80,11 @@ export function VotingBackground() {
       metalness: 0.9,
     })
     const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat)
-    innerRing.position.set(0, 1, -4)
+    innerRing.position.set(0, 1, -5)
     innerRing.rotation.x = Math.PI / 3
     scene.add(innerRing)
 
-    const outerRingGeo = new THREE.TorusGeometry(3.5, 0.03, 32, 64)
+    const outerRingGeo = new THREE.TorusGeometry(5.5, 0.05, 32, 64)
     const outerRingMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color().setHSL(0.7, 0.8, 0.5),
       transparent: true,
@@ -92,11 +93,11 @@ export function VotingBackground() {
       metalness: 0.9,
     })
     const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat)
-    outerRing.position.set(0, 1, -4)
+    outerRing.position.set(0, 1, -5)
     outerRing.rotation.x = -Math.PI / 4
     scene.add(outerRing)
 
-    const particleCount = 500
+    const particleCount = 800
     const particlePositions = new Float32Array(particleCount * 3)
     const particleColors = new Float32Array(particleCount * 3)
     const particleSpeeds: number[] = []
@@ -104,7 +105,7 @@ export function VotingBackground() {
     const particleAngles: number[] = []
 
     for (let i = 0; i < particleCount; i++) {
-      const radius = 2 + Math.random() * 6
+      const radius = 3 + Math.random() * 10
       const angle = Math.random() * Math.PI * 2
       const yOffset = (Math.random() - 0.5) * 4
 
@@ -154,7 +155,7 @@ export function VotingBackground() {
     rimLight.position.set(0, -5, -5)
     scene.add(rimLight)
 
-    camera.position.set(0, 2, 12)
+    camera.position.set(0, 3, 14)
 
     let mouseX = 0
     let targetMouseX = 0
@@ -185,7 +186,7 @@ export function VotingBackground() {
 
       camera.position.x = mouseX * 1.5
       camera.position.y = 2 + mouseY * 0.5
-      camera.lookAt(0, 0.5, -6)
+      camera.lookAt(0, 1, -8)
 
       bars.forEach((bar) => {
         const wave = Math.sin(elapsed * bar.speed + bar.offset + bar.phase)

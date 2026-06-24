@@ -27,6 +27,16 @@ export async function updateUser(
   return prisma.user.update({ where: { id }, data })
 }
 
+export async function updateUserVerification(id: string, verificationToken: string | null) {
+  return prisma.user.update({
+    where: { id },
+    data: {
+      emailVerified: verificationToken === null,
+      verificationToken,
+    },
+  })
+}
+
 export async function countUserCreatedLists(userId: string) {
   return prisma.votingList.count({ where: { createdById: userId } })
 }

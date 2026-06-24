@@ -8,18 +8,26 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  passwordHash  String?
-  imageId       String?
-  imageUrl      String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  name              String?
+  email             String?   @unique
+  passwordHash      String?
+  imageId           String?
+  imageUrl          String?
+  emailVerified     Boolean   @default(false)
+  verificationToken String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   ownedLists    VotingList[]
   participations Participant[]
   votes         Vote[]        @relation("Voter")
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 model VotingList {
@@ -32,14 +40,31 @@ model VotingList {
   updatedAt         DateTime  @updatedAt
   createdById       String
   expiresAt         DateTime?
-  revealVotes       Boolean   @default(false)
-  allowMultipleVotes Boolean  @default(false)
-  rankedVoting      Boolean   @default(false)
-  maxRank           Int       @default(5)
+  revealVotes              Boolean   @default(false)
+  allowMultipleVotes       Boolean   @default(false)
+  rankedVoting             Boolean   @default(false)
+  maxRank                  Int       @default(5)
+  allowParticipantsToAddOptions Boolean @default(false)
 
   createdBy    User          @relation(fields: [createdById], references: [id], onDelete: Cascade)
   participants Participant[]
-  options   Option[]
+  options      Option[]
+  invites      Invite[]
+}
+
+model Invite {
+  id        String       @id @default(cuid())
+  listId    String
+  email     String
+  status    InviteStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  list VotingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, email])
+  @@index([listId])
+  @@index([email])
 }
 
 model Participant {

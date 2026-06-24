@@ -49,7 +49,9 @@ import {
   getParticipants,
   getMyVotes,
   createOption,
-  addParticipant,
+  inviteParticipant,
+  getInvites,
+  cancelInvite,
   removeParticipant,
   vote,
   removeVote,
@@ -65,10 +67,10 @@ import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
 import {
   createOptionSchema,
-  addParticipantSchema,
+  inviteSchema,
   updateListSchema,
   type CreateOptionData,
-  type AddParticipantData,
+  type InviteData,
   type UpdateListData,
 } from "@/lib/schemas"
 import gsap from "gsap"
@@ -191,6 +193,25 @@ export default function ListPage() {
   const expired = isExpired(list?.expiresAt ?? null)
   const isParticipant =
     isOwner || participants.some((p) => p.user.id === session?.user?.id)
+  const canManageOptions = isOwner || (isParticipant && list?.allowParticipantsToAddOptions)
+
+  const { data: invites = [] } = useQuery({
+    queryKey: queryKeys.invites(listId),
+    queryFn: () => getInvites(listId),
+    enabled: !!listId && isOwner,
+  })
+
+  const cancelInviteMutation = useMutation({
+    mutationFn: async (inviteId: string) => {
+      await cancelInvite(inviteId)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.invites(listId) })
+      toast.success("Convite cancelado")
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao cancelar convite"),
+  })
+
   const settingsForm = useForm<UpdateListData>({
     resolver: zodResolver(updateListSchema),
     defaultValues: {
@@ -200,6 +221,7 @@ export default function ListPage() {
       allowMultipleVotes: list?.allowMultipleVotes ?? false,
       rankedVoting: list?.rankedVoting ?? false,
       maxRank: list?.maxRank ?? 5,
+      allowParticipantsToAddOptions: list?.allowParticipantsToAddOptions ?? false,
     },
   })
   useEffect(() => {
@@ -211,6 +233,7 @@ export default function ListPage() {
         allowMultipleVotes: list?.allowMultipleVotes ?? false,
         rankedVoting: list?.rankedVoting ?? false,
         maxRank: list?.maxRank ?? 5,
+        allowParticipantsToAddOptions: list?.allowParticipantsToAddOptions ?? false,
       })
     }
   }, [settingsOpen])
@@ -228,8 +251,8 @@ export default function ListPage() {
     defaultValues: { listId, name: "", description: "", referenceUrl: "" },
   })
 
-  const participantForm = useForm<AddParticipantData>({
-    resolver: zodResolver(addParticipantSchema),
+  const participantForm = useForm<InviteData>({
+    resolver: zodResolver(inviteSchema),
     defaultValues: { listId, email: "" },
   })
 
@@ -250,17 +273,17 @@ export default function ListPage() {
   })
 
   const addParticipantMutation = useMutation({
-    mutationFn: async (data: AddParticipantData) => {
-      await addParticipant(data.listId, data.email)
+    mutationFn: async (data: InviteData) => {
+      await inviteParticipant(data.listId, data.email)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.participants(listId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.list(listId) })
       participantForm.reset({ listId, email: "" })
       setParticipantOpen(false)
-      toast.success("Participante adicionado")
+      toast.success("Convite enviado")
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao adicionar participante"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao convidar"),
   })
 
   const removeParticipantMutation = useMutation({
@@ -727,6 +750,23 @@ export default function ListPage() {
                         </p>
                       </div>
                     </div>
+                    <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
+                      <input
+                        id="allowParticipantsToAddOptions"
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
+                        {...settingsForm.register("allowParticipantsToAddOptions")}
+                        disabled={updateListMutation.isPending}
+                      />
+                      <div className="grid gap-1">
+                        <Label htmlFor="allowParticipantsToAddOptions" className="cursor-pointer font-medium">
+                          Participantes podem adicionar opções
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Quando ativo, qualquer participante pode adicionar ou remover itens da lista. Se desativado, apenas o criador pode gerenciar as opções.
+                        </p>
+                      </div>
+                    </div>
                     {settingsForm.watch("rankedVoting") && (
                       <div className="space-y-2">
                         <Label htmlFor="maxRank">Máximo de rankings por participante</Label>
@@ -797,7 +837,7 @@ export default function ListPage() {
               </Dialog>
             )}
 
-            {isOwner && !expired && (
+            {(isOwner || (isParticipant && list?.allowParticipantsToAddOptions)) && !expired && (
               <>
                 <Dialog open={optionOpen} onOpenChange={setOptionOpen}>
                   <DialogTrigger
@@ -920,7 +960,7 @@ export default function ListPage() {
                   />
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Adicionar participante</DialogTitle>
+                      <DialogTitle>Convidar participante</DialogTitle>
                     </DialogHeader>
                     <form
                       onSubmit={participantForm.handleSubmit((data) => addParticipantMutation.mutate(data))}
@@ -932,7 +972,7 @@ export default function ListPage() {
                         <Input
                           id="participantEmail"
                           type="email"
-                          placeholder="usuario@email.com"
+                          placeholder="email@convidado.com"
                           {...participantForm.register("email")}
                         />
                         {participantForm.formState.errors.email && (
@@ -940,7 +980,7 @@ export default function ListPage() {
                         )}
                       </div>
                       <Button type="submit" className="w-full" disabled={addParticipantMutation.isPending}>
-                        {addParticipantMutation.isPending ? "Adicionando..." : "Adicionar participante"}
+                        {addParticipantMutation.isPending ? "Convidando..." : "Convidar"}
                       </Button>
                     </form>
                   </DialogContent>
@@ -962,7 +1002,7 @@ export default function ListPage() {
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                   <Trophy className="mb-4 h-12 w-12 text-muted-foreground" />
                   <p className="text-lg font-medium">Nenhuma opção ainda</p>
-                  {isOwner && !expired && (
+                  {canManageOptions && !expired && (
                     <p className="text-sm text-muted-foreground">
                       Adicione opções para iniciar a votação.
                     </p>
@@ -1018,7 +1058,7 @@ export default function ListPage() {
                                 <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
                               </div>
                             )}
-                            {isOwner && !expired && (
+                            {canManageOptions && !expired && (
                               <button
                                 type="button"
                                 onClick={() => handleChangeOptionImage(option.id)}
@@ -1046,7 +1086,7 @@ export default function ListPage() {
                                 </a>
                               )}
                             </CardTitle>
-                            {isOwner && !expired && (
+                            {canManageOptions && !expired && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1112,7 +1152,7 @@ export default function ListPage() {
                               </div>
                             </div>
                           )}
-                          {isOwner && !expired && (
+                          {canManageOptions && !expired && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1147,7 +1187,7 @@ export default function ListPage() {
                               <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
                             </div>
                           )}
-                          {isOwner && !expired && (
+                          {canManageOptions && !expired && (
                             <button
                               type="button"
                               onClick={() => handleChangeOptionImage(option.id)}
@@ -1175,7 +1215,7 @@ export default function ListPage() {
                               </a>
                             )}
                           </CardTitle>
-                          {isOwner && !expired && (
+                          {canManageOptions && !expired && (
                             <button
                               type="button"
                               onClick={() => {
@@ -1244,7 +1284,7 @@ export default function ListPage() {
                             )}
                           </>
                         )}
-                        {isOwner && !expired && (
+                        {canManageOptions && !expired && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -1404,6 +1444,38 @@ export default function ListPage() {
                     </li>
                   ))}
                 </ul>
+
+                {isOwner && invites.filter((inv) => inv.status === "PENDING").length > 0 && (
+                  <div className="mt-6">
+                    <h4 className="mb-3 text-sm font-semibold text-muted-foreground">
+                      Convites pendentes
+                    </h4>
+                    <ul className="space-y-2">
+                      {invites.filter((inv) => inv.status === "PENDING").map((invite) => (
+                        <li
+                          key={invite.id}
+                          className="flex items-center justify-between rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-3"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-muted-foreground">{invite.email}</p>
+                            <p className="text-xs text-muted-foreground/60">
+                              Convidado em {new Date(invite.createdAt).toLocaleDateString("pt-BR")}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-muted-foreground hover:text-destructive"
+                            onClick={() => cancelInviteMutation.mutate(invite.id)}
+                            disabled={cancelInviteMutation.isPending}
+                          >
+                            Cancelar
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </CardContent>
             </AnimatedCard>
           </TabsContent>

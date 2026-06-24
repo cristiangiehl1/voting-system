@@ -22,6 +22,8 @@ export const authOptions: NextAuthOptions = {
         const user = await findUserByEmail(email)
         if (!user || !user.passwordHash) return null
 
+        if (!user.emailVerified) return null
+
         const valid = await compare(password, user.passwordHash)
         if (!valid) return null
 

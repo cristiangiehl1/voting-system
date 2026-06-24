@@ -3,14 +3,15 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { Providers } from "@/components/Providers"
 import { Header } from "@/components/Header"
+import { Footer } from "@/components/Footer"
 import { VotingBackground } from "@/components/VotingBackground"
 import { auth } from "@/lib/auth"
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Voting Lists - Sistema de Votação",
-  description: "Crie listas de votação, adicione participantes e candidatos, e acompanhe os resultados.",
+  title: "Eleito - Plataforma de Votação",
+  description: "Crie listas de votação, convide participantes e acompanhe resultados em tempo real.",
 }
 
 export default async function RootLayout({
@@ -27,6 +28,7 @@ export default async function RootLayout({
           <VotingBackground />
           <Header />
           <main className="relative min-h-[calc(100vh-4rem)]">{children}</main>
+          <Footer />
         </Providers>
       </body>
     </html>

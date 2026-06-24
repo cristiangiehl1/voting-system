@@ -82,32 +82,16 @@ ALTER TABLE "User" ALTER COLUMN "updatedAt" SET NOT NULL;
 -- AlterTable
 ALTER TABLE "Vote" DROP COLUMN "comment";
 
--- DropTable
-DROP TABLE "Account";
-
--- DropTable
-DROP TABLE "Achievement";
-
--- DropTable
-DROP TABLE "Label";
-
--- DropTable
-DROP TABLE "Ranking";
-
--- DropTable
-DROP TABLE "Session";
-
--- DropTable
-DROP TABLE "UserAchievement";
-
--- DropTable
-DROP TABLE "UserStats";
-
--- DropTable
-DROP TABLE "VerificationToken";
-
--- DropTable
-DROP TABLE "VoteLabel";
+-- DropTable (CASCADE to handle FK constraints in fresh databases)
+DROP TABLE IF EXISTS "VoteLabel" CASCADE;
+DROP TABLE IF EXISTS "UserAchievement" CASCADE;
+DROP TABLE IF EXISTS "UserStats" CASCADE;
+DROP TABLE IF EXISTS "Session" CASCADE;
+DROP TABLE IF EXISTS "Account" CASCADE;
+DROP TABLE IF EXISTS "VerificationToken" CASCADE;
+DROP TABLE IF EXISTS "Label" CASCADE;
+DROP TABLE IF EXISTS "Achievement" CASCADE;
+DROP TABLE IF EXISTS "Ranking" CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "VotingList" ADD CONSTRAINT "VotingList_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

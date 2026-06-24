@@ -1,398 +1,275 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { useState, useRef, useLayoutEffect } from "react"
 import Link from "next/link"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getMyLists, createList } from "@/app/actions/lists"
 import { Button } from "@/components/ui/button"
-import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Plus, Users, Clock, ListChecks, CalendarDays, ArrowRight, ListOrdered, ImageIcon } from "lucide-react"
-import { toast } from "sonner"
+import { CreateListDialog } from "@/components/CreateListDialog"
+import {
+  Plus,
+  Users,
+  Sparkles,
+  Vote,
+  ClipboardCheck,
+  Share2,
+  BarChart3,
+  Trophy,
+  ShieldCheck,
+  Zap,
+} from "lucide-react"
 import { AnimatedHero } from "@/components/AnimatedHero"
-import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
-import { queryKeys } from "@/lib/query-keys"
-import { createListSchema, type CreateListData } from "@/lib/schemas"
+import gsap from "gsap"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
+import { useReducedMotion } from "@/hooks/useReducedMotion"
 
-function formatDate(date: Date | string | null) {
-  if (!date) return null
-  return new Date(date).toLocaleDateString("pt-BR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-}
+gsap.registerPlugin(ScrollTrigger)
 
-function isExpired(date: Date | string | null) {
-  if (!date) return false
-  return new Date(date) < new Date()
-}
+const STEPS = [
+  {
+    icon: ClipboardCheck,
+    title: "Crie sua lista",
+    description: "Defina um tema, adicione uma descrição e configure as regras de votação — data de expiração, votos múltiplos ou ranking.",
+    gradient: "from-primary/20 to-primary/5",
+  },
+  {
+    icon: Share2,
+    title: "Convide participantes",
+    description: "Compartilhe o link ou adicione participantes por email. Cada um pode acessar e votar de qualquer dispositivo.",
+    gradient: "from-accent/20 to-accent/5",
+  },
+  {
+    icon: BarChart3,
+    title: "Acompanhe resultados",
+    description: "Os votos são computados em tempo real. Visualize rankings, gráficos e distribuição de votos com animações.",
+    gradient: "from-emerald-500/20 to-emerald-500/5",
+  },
+]
+
+const FEATURES = [
+  {
+    icon: Vote,
+    title: "Votação com um clique",
+    description: "Interface intuitiva onde cada participante vota com um clique. Suporte a votos múltiplos e ranking.",
+  },
+  {
+    icon: Trophy,
+    title: "Ranking personalizado",
+    description: "Modele sua votação com pontuação por posição. Defina quantos itens cada participante pode rankear.",
+  },
+  {
+    icon: Users,
+    title: "Convite por email",
+    description: "Adicione participantes diretamente pelo email deles. Cada um recebe acesso às listas que participa.",
+  },
+  {
+    icon: BarChart3,
+    title: "Resultados ao vivo",
+    description: "Acompanhe a apuração em tempo real com gráficos animados e contadores progressivos.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Privacidade dos votos",
+    description: "Configure se os votos são revelados ou anônimos. Ideal para enquetes justas e sem influência.",
+  },
+  {
+    icon: Zap,
+    title: "Rápido e responsivo",
+    description: "Experiência fluida em qualquer dispositivo. Animações suaves e feedback visual imediato.",
+  },
+]
 
 export function HomeContent({
   session,
 }: {
   session: { user: { id: string; name: string | null; email: string | null } } | null
 }) {
-  const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
-  const [listImageUploading, setListImageUploading] = useState(false)
+  const stepsRef = useRef<HTMLDivElement>(null)
+  const featuresRef = useRef<HTMLDivElement>(null)
+  const ctaRef = useRef<HTMLDivElement>(null)
+  const reduce = useReducedMotion()
 
-  const { data: lists = [] } = useQuery({
-    queryKey: queryKeys.lists,
-    queryFn: () => getMyLists(),
-    enabled: !!session?.user?.id,
-  })
+  useLayoutEffect(() => {
+    if (reduce) return
 
-  const form = useForm<CreateListData>({
-    resolver: zodResolver(createListSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      expiresAt: "",
-      revealVotes: false,
-      allowMultipleVotes: false,
-      rankedVoting: false,
-      maxRank: 5,
-    },
-  })
+    const ctx = gsap.context(() => {
+      const sections = [
+        { ref: stepsRef.current, stagger: 0.12 },
+        { ref: featuresRef.current, stagger: 0.08 },
+        { ref: ctaRef.current, stagger: 0 },
+      ]
 
-  const createMutation = useMutation({
-    mutationFn: async (data: CreateListData & { imageId?: string; imageUrl?: string }) => {
-      return createList(
-        data.name,
-        data.description || undefined,
-        data.expiresAt || undefined,
-        data.revealVotes,
-        data.allowMultipleVotes,
-        data.rankedVoting,
-        data.maxRank
-      )
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists })
-      form.reset()
-      setOpen(false)
-      toast.success("Lista criada com sucesso")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao criar lista"),
-  })
+      sections.forEach(({ ref, stagger }) => {
+        if (!ref) return
+        const children = ref.children
+        if (!children || children.length === 0) return
 
-  const rankedVoting = form.watch("rankedVoting")
-  const allowMultipleVotes = form.watch("allowMultipleVotes")
-  const createImage = form.watch("image")
+        gsap.fromTo(
+          children,
+          { y: 40, opacity: 0 },
+          {
+            y: 0,
+            opacity: 1,
+            duration: 0.7,
+            stagger,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: ref,
+              start: "top 85%",
+              once: true,
+            },
+          }
+        )
+      })
+    }, [stepsRef, featuresRef, ctaRef])
 
-  useEffect(() => {
-    if (rankedVoting && !allowMultipleVotes) {
-      form.setValue("allowMultipleVotes", true)
-    }
-  }, [rankedVoting, allowMultipleVotes, form])
-
-  const ownedLists = lists.filter((l) => l.createdById === session?.user?.id)
-  const participantLists = lists.filter((l) => l.createdById !== session?.user?.id)
+    return () => ctx.revert()
+  }, [reduce])
 
   return (
     <PageTransition>
       <AnimatedHero />
 
-      <div className="container mx-auto px-4 py-10">
-        <div className="mb-8 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">Minhas listas</h2>
-            <p className="text-muted-foreground">
-              Gerencie suas listas de votação e acompanhe os resultados.
+      {/* Como funciona */}
+      <section className="relative overflow-hidden border-b border-border/20">
+        <div className="container mx-auto px-4 py-20 md:py-28">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <Badge variant="outline" className="mb-4 border-primary/20 bg-primary/5 text-primary">
+              Como funciona
+            </Badge>
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+              Três passos para sua votação
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Da criação ao resultado, o Eleito simplifica todo o processo de votação.
             </p>
           </div>
 
-          {session && (
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger render={<Button><Plus className="mr-2 h-4 w-4" />Nova lista</Button>} />
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Criar nova lista</DialogTitle>
-                </DialogHeader>
-                <form
-                  onSubmit={form.handleSubmit(async (data) => {
-                    let imageId: string | undefined
-                    let imageUrl: string | undefined
-
-                    const imageFile = data.image
-                    if (imageFile) {
-                      setListImageUploading(true)
-                      try {
-                        const fd = new FormData()
-                        fd.append("file", imageFile)
-                        fd.append("type", "list")
-
-                        const res = await fetch("/api/upload", { method: "POST", body: fd })
-                        const result = await res.json()
-                        if (!res.ok) throw new Error(result.error || "Erro ao fazer upload")
-                        imageId = result.publicId
-                        imageUrl = result.secureUrl
-                      } catch (error) {
-                        toast.error(error instanceof Error ? error.message : "Erro ao fazer upload")
-                        setListImageUploading(false)
-                        return
-                      }
-                      setListImageUploading(false)
-                    }
-
-                    createMutation.mutate({ ...data, imageId, imageUrl })
-                  })}
-                  className="space-y-4"
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome</Label>
-                    <Input id="name" placeholder="Ex: Melhor filme do ano" {...form.register("name")} />
-                    {form.formState.errors.name && (
-                      <p className="text-xs text-destructive">{form.formState.errors.name.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Descrição (opcional)</Label>
-                    <Textarea
-                      id="description"
-                      placeholder="Descreva o propósito da votação"
-                      {...form.register("description")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="expiresAt">Expira em (opcional)</Label>
-                    <Input id="expiresAt" type="datetime-local" {...form.register("expiresAt")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="createListImage">Imagem de capa (opcional)</Label>
-                    <Input
-                      id="createListImage"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null
-                        form.setValue("image", file ?? undefined)
-                      }}
-                      disabled={listImageUploading}
-                    />
-                    {createImage && (
-                      <div className="mt-2 overflow-hidden rounded-lg border border-border/50">
-                        <img
-                          src={URL.createObjectURL(createImage)}
-                          alt="Preview"
-                          className="h-40 w-full object-cover"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
-                    <input
-                      id="revealVotes"
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
-                      {...form.register("revealVotes")}
-                    />
-                    <div className="grid gap-1">
-                      <Label htmlFor="revealVotes" className="cursor-pointer font-medium">
-                        Divulgar votos
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Mostra, em cada opção, quais participantes votaram nela.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
-                    <input
-                      id="allowMultipleVotes"
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
-                      {...form.register("allowMultipleVotes")}
-                      disabled={rankedVoting}
-                    />
-                    <div className="grid gap-1">
-                      <Label htmlFor="allowMultipleVotes" className={`cursor-pointer font-medium ${rankedVoting ? "text-muted-foreground" : ""}`}>
-                        Permitir votos múltiplos
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        {rankedVoting
-                          ? "Sempre ativo para votações por ranking."
-                          : "Quando ativo, cada participante pode votar em várias opções. Se desativado, apenas uma opção por participante."}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
-                    <input
-                      id="rankedVoting"
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
-                      {...form.register("rankedVoting")}
-                    />
-                    <div className="grid gap-1">
-                      <Label htmlFor="rankedVoting" className="cursor-pointer font-medium">
-                        Votação por ranking
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Participantes rankeiam suas opções favoritas em vez de apenas votar.
-                      </p>
-                    </div>
-                  </div>
-                  {rankedVoting && (
-                    <div className="space-y-2">
-                      <Label htmlFor="maxRank">Máximo de rankings por participante</Label>
-                      <Input
-                        id="maxRank"
-                        type="number"
-                        min={1}
-                        max={10}
-                        {...form.register("maxRank", { valueAsNumber: true })}
-                      />
-                    </div>
-                  )}
-                  <Button type="submit" className="w-full" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? "Criando..." : "Criar lista"}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-
-        {!session && (
-          <AnimatedCard className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <ListChecks className="mb-4 h-12 w-12 text-muted-foreground" />
-              <p className="text-lg font-medium">Faça login para começar</p>
-              <p className="text-sm text-muted-foreground">
-                Crie listas de votação e convide outras pessoas para participar.
-              </p>
-              <Link href="/login" className="mt-4">
-                <Button>Entrar</Button>
-              </Link>
-            </CardContent>
-          </AnimatedCard>
-        )}
-
-        {session && lists.length === 0 && (
-          <AnimatedCard className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <ListChecks className="mb-4 h-12 w-12 text-muted-foreground" />
-              <p className="text-lg font-medium">Nenhuma lista ainda</p>
-              <p className="text-sm text-muted-foreground">
-                Crie sua primeira lista de votação clicando no botão acima.
-              </p>
-            </CardContent>
-          </AnimatedCard>
-        )}
-
-        {session && ownedLists.length > 0 && (
-          <section className="mb-8">
-            <h3 className="mb-3 text-lg font-semibold">Criadas por mim</h3>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {ownedLists.map((list) => (
-                <ListCard key={list.id} list={list} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {session && participantLists.length > 0 && (
-          <section>
-            <h3 className="mb-3 text-lg font-semibold">Listas que participo</h3>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {participantLists.map((list) => (
-                <ListCard key={list.id} list={list} />
-              ))}
-            </div>
-          </section>
-        )}
-      </div>
-    </PageTransition>
-  )
-}
-
-type ListData = {
-  id: string
-  name: string
-  description: string | null
-  imageId: string | null
-  imageUrl: string | null
-  createdById: string
-  expiresAt: Date | null
-  rankedVoting: boolean
-  maxRank: number
-  _count: { options: number; participants: number }
-}
-
-function ListCard({ list }: { list: ListData }) {
-  const expired = isExpired(list.expiresAt)
-
-  return (
-    <Link href={`/lists/${list.id}`}>
-      <AnimatedCard className="group h-full cursor-pointer pt-0">
-        <div className="overflow-hidden rounded-t-xl">
-          {list.imageUrl ? (
-            <img src={list.imageUrl} alt={list.name} className="h-56 w-full object-cover" />
-          ) : (
-            <div className="flex h-56 w-full items-center justify-center bg-muted">
-              <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
-            </div>
-          )}
-        </div>
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <CardTitle className="line-clamp-1 text-lg">{list.name}</CardTitle>
-            {expired ? (
-              <Badge variant="secondary">Encerrada</Badge>
-            ) : list.expiresAt ? (
-              <Badge variant="outline">Ativa</Badge>
-            ) : (
-              <Badge variant="outline">Indeterminada</Badge>
-            )}
-          </div>
-          <CardDescription className="line-clamp-2">
-            {list.description || "Sem descrição"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              {list._count.participants} participante{list._count.participants !== 1 ? "s" : ""}
-            </span>
-            <span className="flex items-center gap-1">
-              <ListChecks className="h-4 w-4" />
-              {list._count.options} opção{list._count.options !== 1 ? "es" : ""}
-            </span>
-            {list.rankedVoting && (
-              <span className="flex items-center gap-1">
-                <ListOrdered className="h-4 w-4" />
-                Top {list.maxRank}
-              </span>
-            )}
-          </div>
-          <div className="mt-4 flex items-center justify-between">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <CalendarDays className="h-3.5 w-3.5" />
-              {list.expiresAt ? (
-                expired ? (
-                  <span>Encerrou em {formatDate(list.expiresAt)}</span>
-                ) : (
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    Até {formatDate(list.expiresAt)}
+          <div
+            ref={stepsRef}
+            className="mx-auto grid max-w-5xl gap-6 md:grid-cols-3"
+          >
+            {STEPS.map((step, i) => (
+              <div
+                key={step.title}
+                className="glass-premium relative rounded-xl p-6 transition-all duration-500 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5"
+              >
+                <div className="mb-2 flex items-center gap-3">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                    {i + 1}
                   </span>
-                )
-              ) : (
-                <span>Sem data de expiração</span>
-              )}
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-1 group-hover:text-primary" />
+                </div>
+                <div
+                  className={`mb-4 inline-flex rounded-xl bg-gradient-to-br ${step.gradient} p-3 ring-1 ring-primary/10`}
+                >
+                  <step.icon className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="mb-2 font-semibold">{step.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {step.description}
+                </p>
+              </div>
+            ))}
           </div>
-        </CardContent>
-      </AnimatedCard>
-    </Link>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="relative overflow-hidden border-b border-border/20">
+        <div className="container mx-auto px-4 py-20 md:py-28">
+          <div className="mx-auto mb-12 max-w-2xl text-center">
+            <Badge variant="outline" className="mb-4 border-accent/20 bg-accent/5 text-accent">
+              Recursos
+            </Badge>
+            <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+              Tudo que você precisa
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Funcionalidades pensadas para tornar suas votações justas, transparentes e divertidas.
+            </p>
+          </div>
+
+          <div
+            ref={featuresRef}
+            className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-2 lg:grid-cols-3"
+          >
+            {FEATURES.map((feature) => (
+              <div
+                key={feature.title}
+                className="glass-premium rounded-xl p-5 transition-all duration-500 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5"
+              >
+                <div className="mb-3 inline-flex rounded-lg bg-primary/10 p-2.5 text-primary ring-1 ring-primary/20">
+                  <feature.icon className="h-5 w-5" />
+                </div>
+                <h3 className="mb-1.5 font-semibold">{feature.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="relative overflow-hidden border-b border-border/20">
+        <div
+          ref={ctaRef}
+          className="container mx-auto px-4 py-20 md:py-28"
+        >
+          <div className="glass-premium relative mx-auto max-w-3xl overflow-hidden rounded-2xl p-8 text-center md:p-12">
+            <div
+              className="pointer-events-none absolute inset-0 opacity-30"
+              style={{
+                background: "radial-gradient(circle at 30% 50%, oklch(0.7 0.2 260 / 0.3), transparent 60%), radial-gradient(circle at 70% 50%, oklch(0.75 0.2 320 / 0.2), transparent 60%)",
+              }}
+            />
+
+            <div className="relative">
+              <Badge variant="outline" className="mb-4 border-primary/20 bg-primary/5 text-primary">
+                <Sparkles className="mr-1 h-3 w-3" />
+                Comece agora
+              </Badge>
+              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+                Pronto para criar sua votação?
+              </h2>
+              <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
+                Junte-se a dezenas de usuários que já utilizam o Eleito para criar votações
+                elegantes e acompanhar resultados em tempo real.
+              </p>
+              <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                {session ? (
+                  <Button
+                    size="lg"
+                    className="gap-2 px-8"
+                    onClick={() => setOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Criar nova lista
+                  </Button>
+                ) : (
+                  <>
+                    <Link href="/register">
+                      <Button size="lg" className="gap-2 px-8">
+                        <Sparkles className="h-4 w-4" />
+                        Criar conta gratuita
+                      </Button>
+                    </Link>
+                    <Link href="/login">
+                      <Button variant="outline" size="lg" className="px-8">
+                        Já tenho conta
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <CreateListDialog open={open} onOpenChange={setOpen} />
+    </PageTransition>
   )
 }

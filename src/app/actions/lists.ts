@@ -19,10 +19,19 @@ import {
 } from "@/lib/repositories/option.repository"
 import {
   findParticipantsByListId,
+  findParticipantByUserAndList,
   countParticipantsByUserAndList,
   upsertParticipant,
   deleteParticipant,
 } from "@/lib/repositories/participant.repository"
+import {
+  findInvitesByEmail,
+  findInvitesByListId,
+  createInvite,
+  updateInviteStatus,
+  deleteInvite,
+  countPendingInvitesByEmail,
+} from "@/lib/repositories/invite.repository"
 import {
   findVotesByVoterAndList,
   deleteVotesByVoterAndOption,
@@ -111,7 +120,8 @@ export async function createList(
   revealVotes?: boolean,
   allowMultipleVotes?: boolean,
   rankedVoting?: boolean,
-  maxRank?: number
+  maxRank?: number,
+  allowParticipantsToAddOptions?: boolean
 ) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("Não autorizado")
@@ -131,6 +141,7 @@ export async function createList(
     allowMultipleVotes: isRanked ? true : (allowMultipleVotes ?? false),
     rankedVoting: isRanked,
     maxRank,
+    allowParticipantsToAddOptions,
   })
 
   revalidatePath("/")
@@ -149,6 +160,7 @@ export async function updateList(
     allowMultipleVotes?: boolean
     rankedVoting?: boolean
     maxRank?: number
+    allowParticipantsToAddOptions?: boolean
   }
 ) {
   const session = await auth()
@@ -174,6 +186,7 @@ export async function updateList(
     allowMultipleVotes: isRanked ? true : data.allowMultipleVotes,
     rankedVoting: isRanked,
     maxRank: data.maxRank,
+    allowParticipantsToAddOptions: data.allowParticipantsToAddOptions,
   })
 
   revalidatePath("/")
@@ -194,7 +207,9 @@ export async function createOption(
 
   const list = await findListById(listId)
   if (!list) throw new Error("Lista não encontrada")
-  if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode adicionar opções")
+  if (list.createdById !== session.user.id && !list.allowParticipantsToAddOptions) {
+    throw new Error("Apenas o criador pode adicionar opções")
+  }
 
   await createOptionRepository({
     name,
@@ -208,21 +223,114 @@ export async function createOption(
   revalidatePath(`/lists/${listId}`)
 }
 
-export async function addParticipant(listId: string, email: string) {
+export async function inviteParticipant(listId: string, email: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("Não autorizado")
 
   const list = await findListById(listId)
   if (!list) throw new Error("Lista não encontrada")
-  if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode adicionar participantes")
+  if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode convidar participantes")
+
+  if (email === session.user.email) throw new Error("Você não pode se convidar")
 
   const user = await findUserByEmail(email)
-  if (!user) throw new Error("Usuário não encontrado")
-  if (user.id === session.user.id) throw new Error("O criador já é participante")
+  if (user) {
+    const participant = await findParticipantByUserAndList(user.id, listId)
+    if (participant) throw new Error("Usuário já é participante desta lista")
+  }
 
-  await upsertParticipant(user.id, listId)
+  const existingInvite = await prisma.invite.findUnique({
+    where: { listId_email: { listId, email } },
+  })
+  if (existingInvite && existingInvite.status === "PENDING") {
+    throw new Error("Já existe um convite pendente para este email")
+  }
+
+  await createInvite(listId, email)
 
   revalidatePath(`/lists/${listId}`)
+}
+
+export async function getInvites(listId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error("Não autorizado")
+
+  return findInvitesByListId(listId)
+}
+
+export async function getMyInvites() {
+  const session = await auth()
+  if (!session?.user?.id) return []
+
+  const user = await findUserById(session.user.id)
+  if (!user?.email) return []
+
+  return findInvitesByEmail(user.email)
+}
+
+export async function countMyPendingInvites() {
+  const session = await auth()
+  if (!session?.user?.id) return 0
+
+  const user = await findUserById(session.user.id)
+  if (!user?.email) return 0
+
+  return countPendingInvitesByEmail(user.email)
+}
+
+export async function acceptInvite(inviteId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error("Não autorizado")
+
+  const invite = await prisma.invite.findUnique({ where: { id: inviteId } })
+  if (!invite) throw new Error("Convite não encontrado")
+  if (invite.status !== "PENDING") throw new Error("Convite já foi respondido")
+
+  const user = await findUserById(session.user.id)
+  if (user?.email !== invite.email) throw new Error("Este convite não é para você")
+
+  await prisma.$transaction([
+    prisma.invite.update({ where: { id: inviteId }, data: { status: "ACCEPTED" } }),
+    prisma.participant.upsert({
+      where: { userId_listId: { userId: session.user.id, listId: invite.listId } },
+      update: {},
+      create: { userId: session.user.id, listId: invite.listId },
+    }),
+  ])
+
+  revalidatePath(`/lists/${invite.listId}`)
+}
+
+export async function rejectInvite(inviteId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error("Não autorizado")
+
+  const invite = await prisma.invite.findUnique({ where: { id: inviteId } })
+  if (!invite) throw new Error("Convite não encontrado")
+  if (invite.status !== "PENDING") throw new Error("Convite já foi respondido")
+
+  const user = await findUserById(session.user.id)
+  if (user?.email !== invite.email) throw new Error("Este convite não é para você")
+
+  await updateInviteStatus(inviteId, "REJECTED")
+
+  revalidatePath(`/lists/${invite.listId}`)
+}
+
+export async function cancelInvite(inviteId: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error("Não autorizado")
+
+  const invite = await prisma.invite.findUnique({
+    where: { id: inviteId },
+    include: { list: true },
+  })
+  if (!invite) throw new Error("Convite não encontrado")
+  if (invite.list.createdById !== session.user.id) throw new Error("Apenas o criador pode cancelar convites")
+
+  await deleteInvite(inviteId)
+
+  revalidatePath(`/lists/${invite.listId}`)
 }
 
 export async function removeParticipant(listId: string, participantId: string) {
@@ -273,7 +381,9 @@ export async function removeOption(optionId: string) {
 
   const option = await findOptionById(optionId)
   if (!option) throw new Error("Opção não encontrada")
-  if (option.list.createdById !== session.user.id) throw new Error("Apenas o criador pode remover opções")
+  if (option.list.createdById !== session.user.id && !option.list.allowParticipantsToAddOptions) {
+    throw new Error("Apenas o criador pode remover opções")
+  }
 
   await deleteOptionRepository(optionId)
 

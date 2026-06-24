@@ -9,7 +9,11 @@ export const registerSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
-})
+  confirmPassword: z.string().min(6, "Confirme sua senha"),
+}).refine(
+  (data) => data.password === data.confirmPassword,
+  { message: "Senhas não conferem", path: ["confirmPassword"] }
+)
 
 export const createListSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
@@ -19,6 +23,7 @@ export const createListSchema = z.object({
   allowMultipleVotes: z.boolean().optional(),
   rankedVoting: z.boolean().optional(),
   maxRank: z.number().int().min(1).max(10).optional(),
+  allowParticipantsToAddOptions: z.boolean().optional(),
   image: z.instanceof(File).optional(),
 }).refine(
   (data) => !data.rankedVoting || data.allowMultipleVotes,
@@ -49,6 +54,7 @@ export const updateListSchema = z.object({
   allowMultipleVotes: z.boolean(),
   rankedVoting: z.boolean().optional(),
   maxRank: z.number().int().min(1).max(10).optional(),
+  allowParticipantsToAddOptions: z.boolean().optional(),
   image: z.instanceof(File).optional(),
 }).refine(
   (data) => !data.rankedVoting || data.allowMultipleVotes,
@@ -61,4 +67,10 @@ export type CreateListData = z.infer<typeof createListSchema>
 export type CreateOptionData = z.infer<typeof createOptionSchema>
 export type AddParticipantData = z.infer<typeof addParticipantSchema>
 export type UpdateListData = z.infer<typeof updateListSchema>
+export const inviteSchema = z.object({
+  listId: z.string().min(1, "Selecione uma lista"),
+  email: z.string().email("Email inválido"),
+})
+
+export type InviteData = z.infer<typeof inviteSchema>
 export type UpdateProfileData = z.infer<typeof updateProfileSchema>
