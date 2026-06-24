@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Scale, LogOut, User, UserCircle, ListChecks, Menu, X, Mail } from "lucide-react"
+import { Scale, LogOut, UserCircle, ListChecks, Menu, X, Mail } from "lucide-react"
 import { queryKeys } from "@/lib/query-keys"
 import { countMyPendingInvites } from "@/app/actions/lists"
 
@@ -129,7 +129,7 @@ export function Header() {
                     Meu Perfil
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => signOut()}
+                    onClick={() => signOut({ callbackUrl: `${process.env.NEXT_PUBLIC_APP_URL}/login` })}
                     className="gap-2.5 text-muted-foreground focus:text-foreground"
                   >
                     <LogOut className="h-4 w-4 shrink-0" />
