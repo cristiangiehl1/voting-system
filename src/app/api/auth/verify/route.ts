@@ -32,12 +32,15 @@ export async function GET(request: NextRequest) {
     secret: process.env.AUTH_SECRET!,
   })
 
-  const response = NextResponse.redirect(new URL("/?verified=true", request.url))
+  const isSecure = process.env.NODE_ENV === "production"
+  const cookieName = isSecure ? "__Secure-next-auth.session-token" : "next-auth.session-token"
 
-  response.cookies.set("next-auth.session-token", sessionToken, {
+  const response = NextResponse.redirect(new URL("/profile", request.url))
+
+  response.cookies.set(cookieName, sessionToken, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecure,
     path: "/",
     maxAge: 30 * 24 * 60 * 60,
   })
