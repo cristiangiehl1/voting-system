@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
@@ -14,7 +13,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Scale, LogOut, UserCircle, ListChecks, Menu, X, Mail, Bell } from "lucide-react"
+import { Scale, LogOut, UserCircle, ListChecks, Mail, Bell } from "lucide-react"
 import { queryKeys } from "@/lib/query-keys"
 import { countMyPendingInvites, getMyNotifications, markNotificationAsRead, countUnreadNotifications } from "@/app/actions/lists"
 import { formatDistanceToNow } from "@/lib/utils"
@@ -33,7 +32,6 @@ export function Header() {
   const { data: session } = useSession()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const [mobileOpen, setMobileOpen] = useState(false)
 
   const { data: pendingInvitesCount = 0 } = useQuery({
     queryKey: [...queryKeys.myInvites, "count"],
@@ -77,49 +75,9 @@ export function Header() {
           </span>
         </Link>
 
-        {session?.user && (
-          <nav className="hidden items-center gap-1 md:flex">
-            <Link
-              href="/"
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              Início
-            </Link>
-            <Link
-              href="/lists"
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <span className="flex items-center gap-1.5">
-                <ListChecks className="h-4 w-4" />
-                Minhas listas
-              </span>
-            </Link>
-            <Link
-              href="/invites"
-              className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <span className="flex items-center gap-1.5">
-                <Mail className="h-4 w-4" />
-                Convites
-                {pendingInvitesCount > 0 && (
-                  <Badge className="h-5 px-1.5 text-[10px] leading-none">{pendingInvitesCount}</Badge>
-                )}
-              </span>
-            </Link>
-          </nav>
-        )}
-
         <div className="flex items-center gap-3">
           {session?.user ? (
             <>
-              <button
-                type="button"
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="flex items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground md:hidden"
-              >
-                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-
               <DropdownMenu>
                 <DropdownMenuTrigger>
                   <span className="relative inline-flex">
@@ -210,16 +168,6 @@ export function Header() {
                     <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
                   </div>
                   <DropdownMenuItem
-                    onClick={() => {
-                      setMobileOpen(false)
-                      router.push("/lists")
-                    }}
-                    className="gap-2.5 md:hidden"
-                  >
-                    <ListChecks className="h-4 w-4 shrink-0" />
-                    Minhas listas
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
                     onClick={() => router.push("/invites")}
                     className="gap-2.5"
                   >
@@ -263,56 +211,6 @@ export function Header() {
           )}
         </div>
       </div>
-
-      {session?.user && mobileOpen && (
-        <div className="border-t border-border/30 bg-background/95 px-4 py-3 backdrop-blur-xl md:hidden">
-          <nav className="flex flex-col gap-1">
-            <Link
-              href="/"
-              onClick={() => setMobileOpen(false)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              Início
-            </Link>
-            <Link
-              href="/lists"
-              onClick={() => setMobileOpen(false)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <span className="flex items-center gap-2">
-                <ListChecks className="h-4 w-4" />
-                Minhas listas
-              </span>
-            </Link>
-            <Link
-              href="/invites"
-              onClick={() => setMobileOpen(false)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <span className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Convites
-                {pendingInvitesCount > 0 && (
-                  <Badge className="h-5 px-1.5 text-[10px] leading-none">{pendingInvitesCount}</Badge>
-                )}
-              </span>
-            </Link>
-            <Link
-              href="/notifications"
-              onClick={() => setMobileOpen(false)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-            >
-              <span className="flex items-center gap-2">
-                <Bell className="h-4 w-4" />
-                Notificações
-                {unreadCount > 0 && (
-                  <Badge className="h-5 px-1.5 text-[10px] leading-none">{unreadCount}</Badge>
-                )}
-              </span>
-            </Link>
-          </nav>
-        </div>
-      )}
     </header>
   )
 }
