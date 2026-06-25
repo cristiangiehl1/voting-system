@@ -147,7 +147,7 @@ export default function ListPage() {
     enabled: !!listId,
   })
 
-  const { data: options = [] } = useQuery({
+  const { data: options = [], isPending: optionsLoading } = useQuery({
     queryKey: queryKeys.options(listId),
     queryFn: () => getOptions(listId),
     enabled: !!listId,
@@ -998,7 +998,19 @@ export default function ListPage() {
           </TabsList>
 
           <TabsContent value="options" className="mt-4">
-            {options.length === 0 ? (
+            {optionsLoading ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="animate-pulse rounded-xl border border-border bg-card">
+                    <div className="h-56 rounded-t-xl bg-muted" />
+                    <div className="space-y-3 p-4">
+                      <div className="h-5 w-2/3 rounded bg-muted" />
+                      <div className="h-4 w-full rounded bg-muted" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : options.length === 0 ? (
               <AnimatedCard className="border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                   <Trophy className="mb-4 h-12 w-12 text-muted-foreground" />
