@@ -42,7 +42,11 @@ export async function countUserCreatedLists(userId: string) {
 }
 
 export async function countUserParticipations(userId: string) {
-  return prisma.participant.count({ where: { userId } })
+  const [created, participated] = await Promise.all([
+    prisma.votingList.count({ where: { createdById: userId } }),
+    prisma.participant.count({ where: { userId } }),
+  ])
+  return created + participated
 }
 
 export async function countUserVotes(userId: string) {
