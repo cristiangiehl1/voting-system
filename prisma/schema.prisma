@@ -20,6 +20,7 @@ model User {
   updatedAt         DateTime  @updatedAt
 
   ownedLists    VotingList[]
+  createdOptions Option[]
   participations Participant[]
   votes         Vote[]        @relation("Voter")
 }
@@ -45,6 +46,7 @@ model VotingList {
   rankedVoting             Boolean   @default(false)
   maxRank                  Int       @default(5)
   allowParticipantsToAddOptions Boolean @default(false)
+  isPublic                      Boolean @default(false)
 
   createdBy    User          @relation(fields: [createdById], references: [id], onDelete: Cascade)
   participants Participant[]
@@ -89,9 +91,11 @@ model Option {
   imageUrl      String?
   createdAt     DateTime @default(now())
   listId        String
+  createdById   String
 
-  list  VotingList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  votes Vote[]
+  list      VotingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  createdBy User       @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  votes     Vote[]
 
   @@index([listId])
 }

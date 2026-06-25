@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useLayoutEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { useQuery } from "@tanstack/react-query"
@@ -14,17 +14,17 @@ import {
   ImageIcon,
   Vote,
   Plus,
+  Globe,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { CreateListDialog } from "@/components/CreateListDialog"
 import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
-import { getMyLists } from "@/app/actions/lists"
-import gsap from "gsap"
-import { useReducedMotion } from "@/hooks/useReducedMotion"
+import { getMyLists, getPublicLists } from "@/app/actions/lists"
 
 function formatDate(date: Date | string | null) {
   if (!date) return null
@@ -43,8 +43,7 @@ function isExpired(date: Date | string | null) {
 export default function ListsPage() {
   const { data: session } = useSession()
   const [open, setOpen] = useState(false)
-  const cardsRef = useRef<HTMLDivElement>(null)
-  const reduce = useReducedMotion()
+  const [tab, setTab] = useState("my-lists")
 
   const { data: lists = [] } = useQuery({
     queryKey: queryKeys.lists,
@@ -52,24 +51,13 @@ export default function ListsPage() {
     enabled: !!session?.user?.id,
   })
 
+  const { data: publicLists = [] } = useQuery({
+    queryKey: queryKeys.publicLists,
+    queryFn: () => getPublicLists(),
+  })
+
   const ownedLists = lists.filter((l) => l.createdById === session?.user?.id)
   const participantLists = lists.filter((l) => l.createdById !== session?.user?.id)
-
-  useLayoutEffect(() => {
-    if (reduce || !cardsRef.current) return
-    const cards = cardsRef.current.querySelectorAll(".list-card")
-    if (cards.length === 0) return
-
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        cards,
-        { y: 30, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.6, stagger: 0.06, ease: "power3.out" }
-      )
-    }, cardsRef)
-
-    return () => ctx.revert()
-  }, [lists, reduce])
 
   if (!session) {
     return (
@@ -84,7 +72,7 @@ export default function ListsPage() {
     )
   }
 
-  if (lists.length === 0) {
+  if (lists.length === 0 && publicLists.length === 0) {
     return (
       <PageTransition>
         <div className="container mx-auto px-4 py-12">
@@ -109,40 +97,83 @@ export default function ListsPage() {
     <PageTransition>
       <div className="container mx-auto px-4 py-10">
         <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">Minhas listas</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Listas</h1>
           <Button className="gap-2" onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" />
             Criar lista
           </Button>
         </div>
 
-        <div ref={cardsRef}>
-          {ownedLists.length > 0 && (
-            <section className="mb-10">
-              <h2 className="mb-4 text-lg font-semibold text-muted-foreground">
-                Criadas por mim ({ownedLists.length})
-              </h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {ownedLists.map((list) => (
-                  <ListCard key={list.id} list={list} />
-                ))}
-              </div>
-            </section>
-          )}
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="my-lists">
+              Minhas listas
+              {lists.length > 0 && (
+                <span className="ml-1.5 text-xs text-muted-foreground">({lists.length})</span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="explore">
+              <Globe className="mr-1.5 h-3.5 w-3.5" />
+              Explorar
+            </TabsTrigger>
+          </TabsList>
 
-          {participantLists.length > 0 && (
-            <section>
-              <h2 className="mb-4 text-lg font-semibold text-muted-foreground">
-                Participando ({participantLists.length})
-              </h2>
+          <TabsContent value="my-lists">
+            {ownedLists.length > 0 && (
+              <section className="mb-10">
+                <h2 className="mb-4 text-lg font-semibold text-muted-foreground">
+                  Criadas por mim ({ownedLists.length})
+                </h2>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {ownedLists.map((list) => (
+                    <ListCard key={list.id} list={list} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {participantLists.length > 0 && (
+              <section>
+                <h2 className="mb-4 text-lg font-semibold text-muted-foreground">
+                  Participando ({participantLists.length})
+                </h2>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {participantLists.map((list) => (
+                    <ListCard key={list.id} list={list} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {lists.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <ListChecks className="mb-4 h-12 w-12 text-muted-foreground" />
+                <h2 className="text-xl font-bold">Nenhuma lista ainda</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Crie sua primeira lista para começar.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="explore">
+            {publicLists.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Globe className="mb-4 h-12 w-12 text-muted-foreground" />
+                <h2 className="text-xl font-bold">Nenhuma lista pública</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Ainda não há listas públicas disponíveis.
+                </p>
+              </div>
+            ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {participantLists.map((list) => (
+                {publicLists.map((list) => (
                   <ListCard key={list.id} list={list} />
                 ))}
               </div>
-            </section>
-          )}
-        </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
       <CreateListDialog open={open} onOpenChange={setOpen} />
     </PageTransition>

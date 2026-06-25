@@ -25,6 +25,7 @@ export const createListSchema = z.object({
   maxRank: z.number().int().min(1).max(10).optional(),
   allowParticipantsToAddOptions: z.boolean().optional(),
   image: z.instanceof(File).optional(),
+  isPublic: z.boolean().optional(),
 }).refine(
   (data) => !data.rankedVoting || data.allowMultipleVotes,
   { message: "Votação por ranking requer votos múltiplos ativos", path: ["rankedVoting"] }
@@ -56,6 +57,7 @@ export const updateListSchema = z.object({
   maxRank: z.number().int().min(1).max(10).optional(),
   allowParticipantsToAddOptions: z.boolean().optional(),
   image: z.instanceof(File).optional(),
+  isPublic: z.boolean().optional(),
 }).refine(
   (data) => !data.rankedVoting || data.allowMultipleVotes,
   { message: "Votação por ranking requer votos múltiplos ativos", path: ["rankedVoting"] }

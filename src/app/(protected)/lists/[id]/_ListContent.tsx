@@ -206,6 +206,7 @@ export default function ListPageContent() {
       rankedVoting: list?.rankedVoting ?? false,
       maxRank: list?.maxRank ?? 5,
       allowParticipantsToAddOptions: list?.allowParticipantsToAddOptions ?? false,
+      isPublic: list?.isPublic ?? false,
     },
   })
   useEffect(() => {
@@ -218,6 +219,7 @@ export default function ListPageContent() {
         rankedVoting: list?.rankedVoting ?? false,
         maxRank: list?.maxRank ?? 5,
         allowParticipantsToAddOptions: list?.allowParticipantsToAddOptions ?? false,
+        isPublic: list?.isPublic ?? false,
       })
     }
   }, [settingsOpen])
@@ -681,6 +683,23 @@ export default function ListPageContent() {
                         </div>
                       )}
                     </div>
+                    <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
+                      <input
+                        id="isPublic"
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
+                        {...settingsForm.register("isPublic")}
+                        disabled={updateListMutation.isPending}
+                      />
+                      <div className="grid gap-1">
+                        <Label htmlFor="isPublic" className="cursor-pointer font-medium">
+                          Lista pública
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Qualquer usuário pode ver e votar sem precisar de convite.
+                        </p>
+                      </div>
+                    </div>
                     <Separator />
                     <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
                       <input
@@ -994,7 +1013,7 @@ export default function ListPageContent() {
                   )}
                 </CardContent>
               </AnimatedCard>
-            ) : list?.rankedVoting && isParticipant && !expired ? (
+            ) : list?.rankedVoting && (isParticipant || list?.isPublic) && !expired ? (
               <div>
                 <AnimatedCard className="mb-6 border-primary/30 bg-primary/5">
                   <CardContent className="p-4">
@@ -1088,6 +1107,15 @@ export default function ListPageContent() {
                           <CardDescription className="line-clamp-2">
                             {option.description || "Sem descrição"}
                           </CardDescription>
+                          {option.createdBy && (
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <Avatar size="sm">
+                                {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
+                                <AvatarFallback className="text-[10px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs text-muted-foreground">{option.createdBy.name}</span>
+                            </div>
+                          )}
                         </CardHeader>
                         <CardContent>
                           <div className="mb-4">
@@ -1216,10 +1244,19 @@ export default function ListPageContent() {
                             </button>
                           )}
                         </div>
-                        <CardDescription className="line-clamp-2">
-                          {option.description || "Sem descrição"}
-                        </CardDescription>
-                      </CardHeader>
+                          <CardDescription className="line-clamp-2">
+                            {option.description || "Sem descrição"}
+                          </CardDescription>
+                          {option.createdBy && (
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <Avatar size="sm">
+                                {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
+                                <AvatarFallback className="text-[10px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
+                              </Avatar>
+                              <span className="text-xs text-muted-foreground">{option.createdBy.name}</span>
+                            </div>
+                          )}
+                        </CardHeader>
                       <CardContent>
                         <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
                           <Trophy className="h-4 w-4" />
@@ -1241,7 +1278,7 @@ export default function ListPageContent() {
                             </div>
                           </div>
                         )}
-                        {session && isParticipant && !expired && (
+                        {session && (isParticipant || list?.isPublic) && !expired && (
                           <>
                             {voted ? (
                               <Button
@@ -1285,9 +1322,14 @@ export default function ListPageContent() {
                             Remover opção
                           </Button>
                         )}
-                        {session && !isParticipant && !isOwner && (
+                        {session && !isParticipant && !isOwner && !list?.isPublic && (
                           <p className="text-sm text-muted-foreground">
                             Apenas participantes podem votar.
+                          </p>
+                        )}
+                        {session && !isParticipant && !isOwner && list?.isPublic && (
+                          <p className="text-xs text-muted-foreground">
+                            Vote para participar automaticamente desta lista pública.
                           </p>
                         )}
                       </CardContent>

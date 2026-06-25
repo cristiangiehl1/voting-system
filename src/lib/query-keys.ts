@@ -1,5 +1,6 @@
 export const queryKeys = {
   lists: ["lists"] as const,
+  publicLists: ["public-lists"] as const,
   list: (id: string) => ["list", id] as const,
   options: (listId: string) => ["options", listId] as const,
   participants: (listId: string) => ["participants", listId] as const,

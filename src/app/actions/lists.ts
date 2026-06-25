@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache"
 import {
   findListsByUserId,
   findListById,
+  findPublicLists,
   createList as createListRepository,
   updateList as updateListRepository,
   deleteList as deleteListRepository,
@@ -46,6 +47,10 @@ export async function getMyLists() {
   return findListsByUserId(session.user.id)
 }
 
+export async function getPublicLists() {
+  return findPublicLists()
+}
+
 export async function getList(id: string) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("Não autorizado")
@@ -57,7 +62,7 @@ export async function getList(id: string) {
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, id)) > 0
 
-  if (!isParticipant) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
 
   return list
 }
@@ -73,7 +78,7 @@ export async function getOptions(listId: string) {
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, listId)) > 0
 
-  if (!isParticipant) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
 
   const options = await findOptionsByListId(listId, list.revealVotes)
   if (!list.revealVotes) {
@@ -104,7 +109,7 @@ export async function getResults(listId: string) {
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, listId)) > 0
 
-  if (!isParticipant) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
 
   const results = await getResultsByListId(listId, list.rankedVoting, list.maxRank, list.revealVotes)
   if (!list.revealVotes) {
@@ -121,7 +126,8 @@ export async function createList(
   allowMultipleVotes?: boolean,
   rankedVoting?: boolean,
   maxRank?: number,
-  allowParticipantsToAddOptions?: boolean
+  allowParticipantsToAddOptions?: boolean,
+  isPublic?: boolean
 ) {
   const session = await auth()
   if (!session?.user?.id) throw new Error("Não autorizado")
@@ -142,6 +148,7 @@ export async function createList(
     rankedVoting: isRanked,
     maxRank,
     allowParticipantsToAddOptions,
+    isPublic,
   })
 
   revalidatePath("/")
@@ -161,6 +168,7 @@ export async function updateList(
     rankedVoting?: boolean
     maxRank?: number
     allowParticipantsToAddOptions?: boolean
+    isPublic?: boolean
   }
 ) {
   const session = await auth()
@@ -187,6 +195,7 @@ export async function updateList(
     rankedVoting: isRanked,
     maxRank: data.maxRank,
     allowParticipantsToAddOptions: data.allowParticipantsToAddOptions,
+    isPublic: data.isPublic,
   })
 
   revalidatePath("/")
@@ -218,6 +227,7 @@ export async function createOption(
     imageId: imageId || undefined,
     imageUrl: imageUrl || undefined,
     listId,
+    createdById: session.user.id,
   })
 
   revalidatePath(`/lists/${listId}`)
@@ -423,9 +433,17 @@ export async function vote(optionId: string) {
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, list.id)) > 0
 
-  if (!isParticipant) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
 
   await prisma.$transaction(async (tx) => {
+    if (!isParticipant && list.isPublic) {
+      await tx.participant.upsert({
+        where: { userId_listId: { userId: session.user.id, listId: list.id } },
+        update: {},
+        create: { userId: session.user.id, listId: list.id },
+      })
+    }
+
     const existing = await tx.vote.findUnique({
       where: { voterId_optionId: { voterId: session.user.id, optionId } },
     })
@@ -476,7 +494,7 @@ export async function submitRankedVotes(
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, list.id)) > 0
 
-  if (!isParticipant) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
 
   if (rankings.length > list.maxRank) {
     throw new Error(`Máximo de ${list.maxRank} rankings permitidos`)
@@ -494,6 +512,14 @@ export async function submitRankedVotes(
   }
 
   await prisma.$transaction(async (tx) => {
+    if (!isParticipant && list.isPublic) {
+      await tx.participant.upsert({
+        where: { userId_listId: { userId: session.user.id, listId } },
+        update: {},
+        create: { userId: session.user.id, listId },
+      })
+    }
+
     await tx.vote.deleteMany({
       where: { voterId: session.user.id, option: { listId } },
     })

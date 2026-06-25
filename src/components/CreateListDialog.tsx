@@ -47,7 +47,8 @@ export function CreateListDialog({ open, onOpenChange }: Props) {
         data.allowMultipleVotes,
         data.rankedVoting,
         data.maxRank,
-        data.allowParticipantsToAddOptions
+        data.allowParticipantsToAddOptions,
+        data.isPublic
       )
     },
     onSuccess: (listId) => {
@@ -206,8 +207,24 @@ export function CreateListDialog({ open, onOpenChange }: Props) {
                   Participantes rankeiam suas opções favoritas em vez de apenas votar.
                 </p>
               </div>
+          </div>
+          <div className="flex items-start gap-3 rounded-lg border border-border/50 bg-card/50 p-3">
+            <input
+              id="dialog-list-public"
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
+              {...form.register("isPublic")}
+            />
+            <div className="grid gap-1">
+              <Label htmlFor="dialog-list-public" className="cursor-pointer font-medium">
+                Lista pública
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Qualquer usuário pode ver e votar sem precisar de convite.
+              </p>
             </div>
-            <div className="flex items-start gap-3 rounded-lg border border-border/50 bg-card/50 p-3">
+          </div>
+          <div className="flex items-start gap-3 rounded-lg border border-border/50 bg-card/50 p-3">
               <input
                 id="dialog-list-allow-add"
                 type="checkbox"

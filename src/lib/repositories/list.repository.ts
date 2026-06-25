@@ -6,6 +6,7 @@ type ListWithCount = Array<{
   description: string | null
   imageId: string | null
   imageUrl: string | null
+  isPublic: boolean
   createdAt: Date
   updatedAt: Date
   createdById: string
@@ -25,6 +26,7 @@ type SingleListWithCount = {
   description: string | null
   imageId: string | null
   imageUrl: string | null
+  isPublic: boolean
   createdAt: Date
   updatedAt: Date
   createdById: string
@@ -44,6 +46,18 @@ export async function findListsByUserId(userId: string): Promise<ListWithCount> 
       OR: [{ createdById: userId }, { participants: { some: { userId } } }],
     },
     orderBy: { updatedAt: "desc" },
+    include: {
+      _count: { select: { options: true, participants: true } },
+      createdBy: { select: { name: true, imageUrl: true } },
+    },
+  }) as unknown as ListWithCount
+}
+
+export async function findPublicLists(): Promise<ListWithCount> {
+  return prisma.votingList.findMany({
+    where: { isPublic: true },
+    orderBy: { updatedAt: "desc" },
+    take: 12,
     include: {
       _count: { select: { options: true, participants: true } },
       createdBy: { select: { name: true, imageUrl: true } },
@@ -76,6 +90,7 @@ export async function createList(data: {
   description?: string
   imageId?: string
   imageUrl?: string
+  isPublic?: boolean
   createdById: string
   expiresAt?: Date
   revealVotes?: boolean
@@ -94,6 +109,7 @@ export async function updateList(
     description?: string
     imageId?: string | null
     imageUrl?: string | null
+    isPublic?: boolean
     expiresAt?: Date | null
     revealVotes?: boolean
     allowMultipleVotes?: boolean

@@ -27,5 +27,15 @@ export async function upsertParticipant(userId: string, listId: string) {
 }
 
 export async function deleteParticipant(participantId: string) {
-  return prisma.participant.delete({ where: { id: participantId } })
+  const participant = await prisma.participant.findUnique({
+    where: { id: participantId },
+  })
+  if (!participant) throw new Error("Participante não encontrado")
+
+  await prisma.$transaction([
+    prisma.vote.deleteMany({
+      where: { voterId: participant.userId, option: { listId: participant.listId } },
+    }),
+    prisma.participant.delete({ where: { id: participantId } }),
+  ])
 }

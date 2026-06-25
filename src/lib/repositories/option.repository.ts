@@ -13,6 +13,8 @@ export async function findOptionsByListId(
     imageUrl: string | null
     createdAt: Date
     listId: string
+    createdById: string
+    createdBy: { id: string; name: string | null; imageUrl: string | null }
     _count: { votes: number }
       votes: Array<{
         id: string
@@ -28,6 +30,7 @@ export async function findOptionsByListId(
     orderBy: { name: "asc" },
     include: {
       _count: { select: { votes: true } },
+      createdBy: { select: { id: true, name: true, imageUrl: true } },
       ...(includeVotes
         ? {
             votes: {
@@ -47,6 +50,8 @@ export async function findOptionsByListId(
       imageUrl: string | null
       createdAt: Date
       listId: string
+      createdById: string
+      createdBy: { id: string; name: string | null; imageUrl: string | null }
       _count: { votes: number }
       votes: Array<{
         id: string
@@ -80,6 +85,7 @@ export async function createOption(data: {
   imageId?: string
   imageUrl?: string
   listId: string
+  createdById: string
 }) {
   return prisma.option.create({ data })
 }
