@@ -168,6 +168,13 @@ export function Header() {
                     <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
                   </div>
                   <DropdownMenuItem
+                    onClick={() => router.push("/lists")}
+                    className="gap-2.5"
+                  >
+                    <ListChecks className="h-4 w-4 shrink-0" />
+                    Minhas listas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
                     onClick={() => router.push("/invites")}
                     className="gap-2.5"
                   >
