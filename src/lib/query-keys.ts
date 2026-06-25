@@ -10,4 +10,5 @@ export const queryKeys = {
   myInvites: ["my-invites"] as const,
   notifications: ["notifications"] as const,
   notificationCount: ["notifications", "count"] as const,
+  votingHistory: ["voting-history"] as const,
 }

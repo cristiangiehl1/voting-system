@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Scale, LogOut, UserCircle, ListChecks, Mail, Bell } from "lucide-react"
+import { Scale, LogOut, UserCircle, ListChecks, Mail, Bell, History } from "lucide-react"
 import { queryKeys } from "@/lib/query-keys"
 import { countMyPendingInvites, getMyNotifications, markNotificationAsRead, countUnreadNotifications } from "@/app/actions/lists"
 import { formatDistanceToNow } from "@/lib/utils"
@@ -193,6 +193,13 @@ export function Header() {
                     {unreadCount > 0 && (
                       <Badge className="ml-auto h-5 px-1.5 text-[10px] leading-none">{unreadCount}</Badge>
                     )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push("/history")}
+                    className="gap-2.5"
+                  >
+                    <History className="h-4 w-4 shrink-0" />
+                    Histórico
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => router.push("/profile")}

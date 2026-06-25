@@ -38,6 +38,7 @@ import {
 import {
   findVotesByVoterAndList,
   deleteVotesByVoterAndOption,
+  getVotingHistoryByUserId,
   getResultsByListId,
 } from "@/lib/repositories/vote.repository"
 import { findUserByEmail, findUserById, updateUser as updateUserRepository } from "@/lib/repositories/user.repository"
@@ -691,6 +692,13 @@ export async function markAllNotificationsAsRead() {
   if (!session?.user?.id) throw new Error("Não autorizado")
 
   await markAllAsRead(session.user.id)
+}
+
+export async function getMyVotingHistory() {
+  const session = await auth()
+  if (!session?.user?.id) return []
+
+  return getVotingHistoryByUserId(session.user.id)
 }
 
 export async function updateUserProfile(data: {

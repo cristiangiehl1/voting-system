@@ -46,6 +46,51 @@ export async function deleteVotesByVoterAndList(voterId: string, listId: string)
   })
 }
 
+export async function getVotingHistoryByUserId(userId: string) {
+  const votes = await prisma.vote.findMany({
+    where: { voterId: userId },
+    include: {
+      option: {
+        select: {
+          id: true,
+          name: true,
+          listId: true,
+          list: {
+            select: {
+              id: true,
+              name: true,
+              imageUrl: true,
+              createdAt: true,
+              rankedVoting: true,
+              createdBy: { select: { name: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  })
+
+  const listMap = new Map<string, {
+    list: { id: string; name: string; imageUrl: string | null; createdAt: Date; rankedVoting: boolean; createdBy: { name: string | null } }
+    votes: Array<{ optionName: string; rank: number | null; votedAt: Date }>
+  }>()
+
+  for (const v of votes) {
+    const listId = v.option.list.id
+    if (!listMap.has(listId)) {
+      listMap.set(listId, { list: v.option.list, votes: [] })
+    }
+    listMap.get(listId)!.votes.push({
+      optionName: v.option.name,
+      rank: v.rank,
+      votedAt: v.createdAt,
+    })
+  }
+
+  return Array.from(listMap.values())
+}
+
 export async function getResultsByListId(listId: string, rankedVoting?: boolean, maxRank?: number, includeVoterInfo = false) {
   const options = await prisma.option.findMany({
     where: { listId },
