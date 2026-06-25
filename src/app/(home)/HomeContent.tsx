@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useLayoutEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -16,9 +17,14 @@ import {
   Trophy,
   ShieldCheck,
   Zap,
+  Globe,
+  ArrowRight,
+  ImageIcon,
 } from "lucide-react"
 import { AnimatedHero } from "@/components/AnimatedHero"
 import { PageTransition } from "@/components/PageTransition"
+import { queryKeys } from "@/lib/query-keys"
+import { getPublicLists } from "@/app/actions/lists"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
@@ -90,6 +96,11 @@ export function HomeContent({
   const ctaRef = useRef<HTMLDivElement>(null)
   const reduce = useReducedMotion()
 
+  const { data: publicLists = [] } = useQuery({
+    queryKey: queryKeys.publicLists,
+    queryFn: () => getPublicLists(),
+  })
+
   useLayoutEffect(() => {
     if (reduce) return
 
@@ -130,6 +141,68 @@ export function HomeContent({
   return (
     <PageTransition>
       <AnimatedHero />
+
+      {publicLists.length > 0 && (
+        <section className="relative overflow-hidden border-b border-border/20">
+          <div className="container mx-auto px-4 py-16 md:py-20">
+            <div className="mx-auto mb-10 max-w-2xl text-center">
+              <Badge variant="outline" className="mb-4 border-primary/20 bg-primary/5 text-primary">
+                <Globe className="mr-1.5 h-3 w-3" />
+                Listas públicas
+              </Badge>
+              <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
+                Votações abertas
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                Participe de votações públicas sem precisar de convite.
+              </p>
+            </div>
+            <div className="mx-auto grid max-w-5xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {publicLists.slice(0, 6).map((list) => (
+                <Link key={list.id} href={session ? `/lists/${list.id}` : "/login"} className="group block">
+                  <div className="glass-premium rounded-xl overflow-hidden transition-all duration-500 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+                    <div className="image-zoom">
+                      {list.imageUrl ? (
+                        <img src={list.imageUrl} alt={list.name} className="h-40 w-full object-cover" />
+                      ) : (
+                        <div className="flex h-40 w-full items-center justify-center bg-muted">
+                          <ImageIcon className="h-8 w-8 text-muted-foreground/40" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="mb-1 font-semibold truncate">{list.name}</h3>
+                      <p className="mb-3 text-xs text-muted-foreground line-clamp-2">
+                        {list.description || "Sem descrição"}
+                      </p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Trophy className="h-3 w-3" />
+                          {list._count.options} opções
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {list._count.participants} participantes
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            {publicLists.length > 6 && (
+              <div className="mt-8 text-center">
+                <Link href={session ? "/lists" : "/login"}>
+                  <Button variant="outline" className="gap-2">
+                    Ver todas as listas públicas
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Como funciona */}
       <section className="relative overflow-hidden border-b border-border/20">
