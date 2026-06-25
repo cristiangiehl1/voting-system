@@ -30,7 +30,7 @@ export function PageTransition({ children }: { children: ReactNode }) {
       )
     }, containerRef)
 
-    return () => ctx.revert()
+    return () => ctx.kill()
   }, [reduce])
 
   return (

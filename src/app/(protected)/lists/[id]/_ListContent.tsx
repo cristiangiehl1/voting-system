@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useLayoutEffect, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useForm } from "react-hook-form"
@@ -73,7 +73,6 @@ import {
   type InviteData,
   type UpdateListData,
 } from "@/lib/schemas"
-import gsap from "gsap"
 
 const KNOWN_SITES: Record<string, string> = {
   "steampowered.com": "Steam",
@@ -139,7 +138,6 @@ export default function ListPageContent() {
   const [optionOpen, setOptionOpen] = useState(false)
   const [participantOpen, setParticipantOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const cardsRef = useRef<HTMLDivElement>(null)
 
   const { data: list } = useQuery({
     queryKey: queryKeys.list(listId),
@@ -174,18 +172,6 @@ export default function ListPageContent() {
   const currentIndex = userLists.findIndex((l) => l.id === listId)
   const prevList = currentIndex > 0 ? userLists[currentIndex - 1] : null
   const nextList = currentIndex >= 0 && currentIndex < userLists.length - 1 ? userLists[currentIndex + 1] : null
-
-  useLayoutEffect(() => {
-    if (!cardsRef.current) return
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        cardsRef.current!.children,
-        { y: 24, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.5, stagger: 0.06, ease: "power2.out" }
-      )
-    }, cardsRef)
-    return () => ctx.kill()
-  }, [options])
 
   const isOwner = list?.createdById === session?.user?.id
   const expired = isExpired(list?.expiresAt ?? null)
@@ -1041,13 +1027,14 @@ export default function ListPageContent() {
                   </CardContent>
                 </AnimatedCard>
 
-                <div ref={cardsRef} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {[...rankedOptions, ...unrankedOptions].map((option) => {
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {[...rankedOptions, ...unrankedOptions].map((option, index) => {
                     const rank = getRank(option.id)
                     return (
                       <AnimatedCard
                         key={option.id}
                         className={`pt-0 ${rank != null ? "border-primary/50 bg-primary/5" : ""}`}
+                        style={{ animationDelay: `${index * 0.06}s` }}
                       >
                           <div className="group relative overflow-hidden rounded-t-xl">
                             {option.imageUrl ? (
@@ -1171,13 +1158,14 @@ export default function ListPageContent() {
                 </div>
               </div>
             ) : (
-              <div ref={cardsRef} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {options.map((option) => {
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {options.map((option, index) => {
                   const voted = myVotes.some((v) => v.optionId === option.id)
                   return (
                     <AnimatedCard
                       key={option.id}
                       className={`pt-0 ${voted ? "border-primary/50 bg-primary/5" : ""}`}
+                      style={{ animationDelay: `${index * 0.06}s` }}
                     >
                         <div className="group relative overflow-hidden rounded-t-xl">
                           {option.imageUrl ? (
