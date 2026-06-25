@@ -43,7 +43,7 @@ export function VoteBars({
       })
     }, containerRef)
 
-    return () => ctx.revert()
+    return () => ctx.kill()
   }, [data, reduce])
 
   return (

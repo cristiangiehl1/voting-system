@@ -21,7 +21,7 @@ export function AnimatedCounter({ value }: { value: number }) {
     return () => {
       tween.kill()
     }
-  }, [value, displayValue])
+  }, [value])
 
   return <span ref={ref}>{displayValue}</span>
 }
