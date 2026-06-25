@@ -1047,7 +1047,7 @@ export default function ListPageContent() {
                     return (
                       <AnimatedCard
                         key={option.id}
-                        className={`translate-y-6 opacity-0 pt-0 ${rank != null ? "border-primary/50 bg-primary/5" : ""}`}
+                        className={`pt-0 ${rank != null ? "border-primary/50 bg-primary/5" : ""}`}
                       >
                           <div className="group relative overflow-hidden rounded-t-xl">
                             {option.imageUrl ? (
@@ -1177,7 +1177,7 @@ export default function ListPageContent() {
                   return (
                     <AnimatedCard
                       key={option.id}
-                      className={`translate-y-6 opacity-0 pt-0 ${voted ? "border-primary/50 bg-primary/5" : ""}`}
+                      className={`pt-0 ${voted ? "border-primary/50 bg-primary/5" : ""}`}
                     >
                         <div className="group relative overflow-hidden rounded-t-xl">
                           {option.imageUrl ? (
