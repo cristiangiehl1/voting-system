@@ -178,15 +178,13 @@ export default function ListPageContent() {
   useLayoutEffect(() => {
     if (!cardsRef.current) return
     const ctx = gsap.context(() => {
-      gsap.to(cardsRef.current!.children, {
-        y: 0,
-        opacity: 1,
-        duration: 0.5,
-        stagger: 0.06,
-        ease: "power2.out",
-      })
+      gsap.fromTo(
+        cardsRef.current!.children,
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0.06, ease: "power2.out" }
+      )
     }, cardsRef)
-    return () => ctx.revert()
+    return () => ctx.kill()
   }, [options])
 
   const isOwner = list?.createdById === session?.user?.id
@@ -542,9 +540,9 @@ export default function ListPageContent() {
 
         <div className="mb-6 overflow-hidden rounded-xl">
           {list.imageUrl ? (
-            <img src={list.imageUrl} alt={list.name} className="h-56 w-full object-cover" />
+            <img src={list.imageUrl} alt={list.name} className="h-72 w-full object-cover" />
           ) : (
-            <div className="flex h-56 w-full items-center justify-center bg-muted">
+            <div className="flex h-72 w-full items-center justify-center bg-muted">
               <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
             </div>
           )}
