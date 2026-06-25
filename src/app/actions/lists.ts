@@ -39,6 +39,14 @@ import {
   getResultsByListId,
 } from "@/lib/repositories/vote.repository"
 import { findUserByEmail, findUserById, updateUser as updateUserRepository } from "@/lib/repositories/user.repository"
+import {
+  createNotification,
+  createManyNotifications,
+  findNotificationsByUserId,
+  countUnreadByUserId,
+  markAsRead,
+  markAllAsRead,
+} from "@/lib/repositories/notification.repository"
 
 export async function getMyLists() {
   const session = await auth()
@@ -230,6 +238,19 @@ export async function createOption(
     createdById: session.user.id,
   })
 
+  const participants = await findParticipantsByListId(listId)
+  const notifications = participants
+    .filter(p => p.userId !== session.user.id)
+    .map(p => ({
+      userId: p.userId,
+      type: "OPTION_ADDED" as const,
+      title: `${session.user.name ?? session.user.email} adicionou "${name}" em "${list.name}"`,
+      listId,
+    }))
+  if (notifications.length > 0) {
+    await createManyNotifications(notifications)
+  }
+
   revalidatePath(`/lists/${listId}`)
 }
 
@@ -257,6 +278,15 @@ export async function inviteParticipant(listId: string, email: string) {
   }
 
   await createInvite(listId, email)
+
+  if (user) {
+    await createNotification({
+      userId: user.id,
+      type: "INVITE_RECEIVED",
+      title: `${session.user.name ?? session.user.email} te convidou para "${list.name}"`,
+      listId,
+    })
+  }
 
   revalidatePath(`/lists/${listId}`)
 }
@@ -308,6 +338,16 @@ export async function acceptInvite(inviteId: string) {
     }),
   ])
 
+  const list = await findListById(invite.listId)
+  if (list) {
+    await createNotification({
+      userId: list.createdById,
+      type: "INVITE_ACCEPTED",
+      title: `${user?.name ?? user?.email} aceitou seu convite para "${list.name}"`,
+      listId: invite.listId,
+    })
+  }
+
   revalidatePath(`/lists/${invite.listId}`)
 }
 
@@ -323,6 +363,16 @@ export async function rejectInvite(inviteId: string) {
   if (user?.email !== invite.email) throw new Error("Este convite não é para você")
 
   await updateInviteStatus(inviteId, "REJECTED")
+
+  const list = await findListById(invite.listId)
+  if (list) {
+    await createNotification({
+      userId: list.createdById,
+      type: "INVITE_REJECTED",
+      title: `${user?.name ?? user?.email} recusou seu convite para "${list.name}"`,
+      listId: invite.listId,
+    })
+  }
 
   revalidatePath(`/lists/${invite.listId}`)
 }
@@ -397,6 +447,19 @@ export async function removeOption(optionId: string) {
 
   await deleteOptionRepository(optionId)
 
+  const participants = await findParticipantsByListId(option.list.id)
+  const notifications = participants
+    .filter(p => p.userId !== session.user.id)
+    .map(p => ({
+      userId: p.userId,
+      type: "OPTION_REMOVED" as const,
+      title: `${session.user.name ?? session.user.email} removeu "${option.name}" de "${option.list.name}"`,
+      listId: option.list.id,
+    }))
+  if (notifications.length > 0) {
+    await createManyNotifications(notifications)
+  }
+
   revalidatePath(`/lists/${option.list.id}`)
 }
 
@@ -407,6 +470,18 @@ export async function deleteList(id: string) {
   const list = await findListById(id)
   if (!list) throw new Error("Lista não encontrada")
   if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode deletar a lista")
+
+  const participants = await findParticipantsByListId(id)
+  const notifications = participants
+    .filter(p => p.userId !== session.user.id)
+    .map(p => ({
+      userId: p.userId,
+      type: "LIST_DELETED" as const,
+      title: `${session.user.name ?? session.user.email} encerrou a lista "${list.name}"`,
+    }))
+  if (notifications.length > 0) {
+    await createManyNotifications(notifications)
+  }
 
   await deleteListRepository(id)
 
@@ -460,6 +535,19 @@ export async function vote(optionId: string) {
       data: { voterId: session.user.id, optionId },
     })
   })
+
+  const participants = await findParticipantsByListId(list.id)
+  const notifications = participants
+    .filter(p => p.userId !== session.user.id)
+    .map(p => ({
+      userId: p.userId,
+      type: "NEW_VOTE" as const,
+      title: `${session.user.name ?? session.user.email} votou em "${list.name}"`,
+      listId: list.id,
+    }))
+  if (notifications.length > 0) {
+    await createManyNotifications(notifications)
+  }
 
   revalidatePath(`/lists/${list.id}`)
 }
@@ -520,19 +608,60 @@ export async function submitRankedVotes(
       })
     }
 
-    await tx.vote.deleteMany({
-      where: { voterId: session.user.id, option: { listId } },
+      await tx.vote.deleteMany({
+        where: { voterId: session.user.id, option: { listId } },
+      })
+
+      for (const r of rankings) {
+        await tx.vote.create({
+          data: { voterId: session.user.id, optionId: r.optionId, rank: r.rank },
+        })
+      }
     })
 
-    for (const r of rankings) {
-      await tx.vote.create({
-        data: { voterId: session.user.id, optionId: r.optionId, rank: r.rank },
-      })
+    const participants = await findParticipantsByListId(listId)
+    const notifications = participants
+      .filter(p => p.userId !== session.user.id)
+      .map(p => ({
+        userId: p.userId,
+        type: "NEW_VOTE" as const,
+        title: `${session.user.name ?? session.user.email} votou em "${list.name}"`,
+        listId,
+      }))
+    if (notifications.length > 0) {
+      await createManyNotifications(notifications)
     }
-  })
 
-  revalidatePath(`/lists/${listId}`)
-  revalidatePath(`/lists/${listId}/results`)
+    revalidatePath(`/lists/${listId}`)
+    revalidatePath(`/lists/${listId}/results`)
+  }
+
+export async function getMyNotifications() {
+  const session = await auth()
+  if (!session?.user?.id) return []
+
+  return findNotificationsByUserId(session.user.id)
+}
+
+export async function countUnreadNotifications() {
+  const session = await auth()
+  if (!session?.user?.id) return 0
+
+  return countUnreadByUserId(session.user.id)
+}
+
+export async function markNotificationAsRead(id: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error("Não autorizado")
+
+  await markAsRead(id)
+}
+
+export async function markAllNotificationsAsRead() {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error("Não autorizado")
+
+  await markAllAsRead(session.user.id)
 }
 
 export async function updateUserProfile(data: {

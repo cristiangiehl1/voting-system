@@ -8,4 +8,6 @@ export const queryKeys = {
   results: (listId: string) => ["results", listId] as const,
   invites: (listId: string) => ["invites", listId] as const,
   myInvites: ["my-invites"] as const,
+  notifications: ["notifications"] as const,
+  notificationCount: ["notifications", "count"] as const,
 }

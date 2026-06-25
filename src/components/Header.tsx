@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -14,13 +14,25 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Scale, LogOut, UserCircle, ListChecks, Menu, X, Mail } from "lucide-react"
+import { Scale, LogOut, UserCircle, ListChecks, Menu, X, Mail, Bell } from "lucide-react"
 import { queryKeys } from "@/lib/query-keys"
-import { countMyPendingInvites } from "@/app/actions/lists"
+import { countMyPendingInvites, getMyNotifications, markNotificationAsRead, countUnreadNotifications } from "@/app/actions/lists"
+import { formatDistanceToNow } from "@/lib/utils"
+
+const NOTIFICATION_ICONS: Record<string, string> = {
+  INVITE_RECEIVED: "📨",
+  INVITE_ACCEPTED: "✅",
+  INVITE_REJECTED: "❌",
+  NEW_VOTE: "🗳️",
+  OPTION_ADDED: "➕",
+  OPTION_REMOVED: "➖",
+  LIST_DELETED: "🗑️",
+}
 
 export function Header() {
   const { data: session } = useSession()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const { data: pendingInvitesCount = 0 } = useQuery({
@@ -28,6 +40,29 @@ export function Header() {
     queryFn: () => countMyPendingInvites(),
     enabled: !!session?.user?.id,
     refetchInterval: 30_000,
+  })
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: queryKeys.notificationCount,
+    queryFn: () => countUnreadNotifications(),
+    enabled: !!session?.user?.id,
+    refetchInterval: 15_000,
+  })
+
+  const { data: notifications = [] } = useQuery({
+    queryKey: queryKeys.notifications,
+    queryFn: () => getMyNotifications(),
+    enabled: !!session?.user?.id,
+  })
+
+  const markReadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await markNotificationAsRead(id)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
+      queryClient.invalidateQueries({ queryKey: queryKeys.notificationCount })
+    },
   })
 
   return (
@@ -87,6 +122,79 @@ export function Header() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger>
+                  <span className="relative inline-flex">
+                    <Bell className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+                    {unreadCount > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground leading-none">
+                        {unreadCount > 99 ? "99+" : unreadCount}
+                      </span>
+                    )}
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 p-1.5">
+                  <div className="mb-1.5 flex items-center justify-between border-b border-border/30 px-2.5 pb-2">
+                    <p className="text-sm font-medium">Notificações</p>
+                    {notifications.length > 0 && (
+                      <Link
+                        href="/notifications"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Ver todas
+                      </Link>
+                    )}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <p className="px-2.5 py-6 text-center text-sm text-muted-foreground">
+                      Nenhuma notificação
+                    </p>
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto">
+                      {notifications.slice(0, 5).map((notif) => (
+                        <DropdownMenuItem
+                          key={notif.id}
+                          className="flex items-start gap-2.5 px-2.5 py-2 text-sm cursor-pointer"
+                          onClick={() => {
+                            if (!notif.readAt) {
+                              markReadMutation.mutate(notif.id)
+                            }
+                            if (notif.listId) {
+                              router.push(`/lists/${notif.listId}`)
+                            }
+                          }}
+                        >
+                          <span className="mt-0.5 shrink-0 text-base leading-none">
+                            {NOTIFICATION_ICONS[notif.type] ?? "🔔"}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className={`truncate ${!notif.readAt ? "font-medium" : "text-muted-foreground"}`}>
+                              {notif.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDistanceToNow(new Date(notif.createdAt))}
+                            </p>
+                          </div>
+                          {!notif.readAt && (
+                            <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  )}
+                  {notifications.length > 5 && (
+                    <div className="border-t border-border/30 pt-1.5">
+                      <Link
+                        href="/notifications"
+                        className="block rounded-md px-2.5 py-1.5 text-center text-xs text-primary hover:bg-secondary/50"
+                      >
+                        Ver todas as {notifications.length} notificações
+                      </Link>
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger>
                   <Avatar className="h-9 w-9 cursor-pointer ring-2 ring-border ring-offset-2 ring-offset-background transition-all hover:ring-primary">
                     {session.user.image ? (
                       <AvatarImage src={session.user.image} alt={session.user.name ?? ""} />
@@ -119,6 +227,16 @@ export function Header() {
                     Convites
                     {pendingInvitesCount > 0 && (
                       <Badge className="ml-auto h-5 px-1.5 text-[10px] leading-none">{pendingInvitesCount}</Badge>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push("/notifications")}
+                    className="gap-2.5"
+                  >
+                    <Bell className="h-4 w-4 shrink-0" />
+                    Notificações
+                    {unreadCount > 0 && (
+                      <Badge className="ml-auto h-5 px-1.5 text-[10px] leading-none">{unreadCount}</Badge>
                     )}
                   </DropdownMenuItem>
                   <DropdownMenuItem
@@ -176,6 +294,19 @@ export function Header() {
                 Convites
                 {pendingInvitesCount > 0 && (
                   <Badge className="h-5 px-1.5 text-[10px] leading-none">{pendingInvitesCount}</Badge>
+                )}
+              </span>
+            </Link>
+            <Link
+              href="/notifications"
+              onClick={() => setMobileOpen(false)}
+              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <span className="flex items-center gap-2">
+                <Bell className="h-4 w-4" />
+                Notificações
+                {unreadCount > 0 && (
+                  <Badge className="h-5 px-1.5 text-[10px] leading-none">{unreadCount}</Badge>
                 )}
               </span>
             </Link>

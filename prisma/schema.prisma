@@ -23,12 +23,23 @@ model User {
   createdOptions Option[]
   participations Participant[]
   votes         Vote[]        @relation("Voter")
+  notifications Notification[]
 }
 
 enum InviteStatus {
   PENDING
   ACCEPTED
   REJECTED
+}
+
+enum NotificationType {
+  INVITE_RECEIVED
+  INVITE_ACCEPTED
+  INVITE_REJECTED
+  NEW_VOTE
+  OPTION_ADDED
+  OPTION_REMOVED
+  LIST_DELETED
 }
 
 model VotingList {
@@ -112,4 +123,19 @@ model Vote {
 
   @@unique([voterId, optionId])
   @@index([optionId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String?
+  listId    String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
 }
