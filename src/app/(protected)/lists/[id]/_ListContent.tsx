@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -46,6 +46,7 @@ import {
   getMyLists,
   getList,
   getOptions,
+  getOptionsPaginated,
   getParticipants,
   getMyVotes,
   createOption,
@@ -145,11 +146,14 @@ export default function ListPageContent() {
     enabled: !!listId,
   })
 
-  const { data: options = [] } = useQuery({
+  const { data: optionsData, isPending: optionsLoading, fetchNextPage: fetchNextOptions, hasNextPage: hasNextOptions, isFetchingNextPage: fetchingNextOptions } = useInfiniteQuery({
     queryKey: queryKeys.options(listId),
-    queryFn: () => getOptions(listId),
+    queryFn: ({ pageParam }) => getOptionsPaginated(listId, pageParam as string | undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!listId,
   })
+  const options = optionsData?.pages.flatMap(p => p.items) ?? []
 
   const { data: participants = [] } = useQuery({
     queryKey: queryKeys.participants(listId),
@@ -1336,6 +1340,19 @@ export default function ListPageContent() {
                     </AnimatedCard>
                   )
                 })}
+              </div>
+            )}
+
+            {hasNextOptions && (
+              <div className="mt-8 flex justify-center">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => fetchNextOptions()}
+                  disabled={fetchingNextOptions}
+                >
+                  {fetchingNextOptions ? "Carregando..." : "Carregar mais opções"}
+                </Button>
               </div>
             )}
 

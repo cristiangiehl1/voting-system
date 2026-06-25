@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
 import {
   Users,
   ListChecks,
@@ -24,7 +24,7 @@ import { AnimatedCard } from "@/components/AnimatedCard"
 import { CreateListDialog } from "@/components/CreateListDialog"
 import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
-import { getMyLists, getPublicLists } from "@/app/actions/lists"
+import { getMyLists, getPublicLists, getMyListsPaginated } from "@/app/actions/lists"
 
 function formatDate(date: Date | string | null) {
   if (!date) return null
@@ -45,11 +45,14 @@ export default function ListsPageContent() {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState("my-lists")
 
-  const { data: lists = [], isPending: listsLoading } = useQuery({
+  const { data: listsData, isPending: listsLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: queryKeys.lists,
-    queryFn: () => getMyLists(),
+    queryFn: ({ pageParam }) => getMyListsPaginated(pageParam as string | undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!session?.user?.id,
   })
+  const lists = listsData?.pages.flatMap(p => p.items) ?? []
 
   const { data: publicLists = [], isPending: publicListsLoading } = useQuery({
     queryKey: queryKeys.publicLists,
@@ -168,6 +171,19 @@ export default function ListsPageContent() {
                   ))}
                 </div>
               </section>
+            )}
+
+            {hasNextPage && (
+              <div className="mt-8 flex justify-center">
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? "Carregando..." : "Carregar mais listas"}
+                </Button>
+              </div>
             )}
 
             {lists.length === 0 && (

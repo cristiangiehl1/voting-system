@@ -7,6 +7,7 @@ import {
   findListsByUserId,
   findListById,
   findPublicLists,
+  findListsByUserIdPaginated,
   createList as createListRepository,
   updateList as updateListRepository,
   deleteList as deleteListRepository,
@@ -14,6 +15,7 @@ import {
 import {
   findOptionsByListId,
   findOptionById,
+  findOptionsByListIdPaginated,
   createOption as createOptionRepository,
   deleteOption as deleteOptionRepository,
   updateOption as updateOptionRepository,
@@ -55,6 +57,13 @@ export async function getMyLists() {
   return findListsByUserId(session.user.id)
 }
 
+export async function getMyListsPaginated(cursor?: string) {
+  const session = await auth()
+  if (!session?.user?.id) return { items: [], nextCursor: null }
+
+  return findListsByUserIdPaginated(session.user.id, 12, cursor)
+}
+
 export async function getPublicLists() {
   return findPublicLists()
 }
@@ -93,6 +102,26 @@ export async function getOptions(listId: string) {
     return options.map((o) => ({ ...o, votes: [] }))
   }
   return options
+}
+
+export async function getOptionsPaginated(listId: string, cursor?: string) {
+  const session = await auth()
+  if (!session?.user?.id) throw new Error("Não autorizado")
+
+  const list = await findListById(listId)
+  if (!list) throw new Error("Lista não encontrada")
+
+  const isParticipant =
+    list.createdById === session.user.id ||
+    (await countParticipantsByUserAndList(session.user.id, listId)) > 0
+
+  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
+
+  const result = await findOptionsByListIdPaginated(listId, list.revealVotes, 20, cursor)
+  if (!list.revealVotes) {
+    return { ...result, items: result.items.map((o) => ({ ...o, votes: [] })) }
+  }
+  return result
 }
 
 export async function getParticipants(listId: string) {

@@ -53,6 +53,29 @@ export async function findListsByUserId(userId: string): Promise<ListWithCount> 
   }) as unknown as ListWithCount
 }
 
+export async function findListsByUserIdPaginated(
+  userId: string,
+  take: number,
+  cursor?: string
+): Promise<{ items: ListWithCount; nextCursor: string | null }> {
+  const items = await prisma.votingList.findMany({
+    where: {
+      OR: [{ createdById: userId }, { participants: { some: { userId } } }],
+    },
+    orderBy: { updatedAt: "desc" },
+    take: take + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    include: {
+      _count: { select: { options: true, participants: true } },
+      createdBy: { select: { name: true, imageUrl: true } },
+    },
+  }) as unknown as ListWithCount
+
+  const nextCursor = items.length > take ? (items.pop()!.id) : null
+
+  return { items, nextCursor }
+}
+
 export async function findPublicLists(): Promise<ListWithCount> {
   return prisma.votingList.findMany({
     where: { isPublic: true },

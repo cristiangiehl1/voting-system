@@ -1,6 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { getMyLists, getPublicLists } from "@/app/actions/lists"
+import { getPublicLists, getMyListsPaginated } from "@/app/actions/lists"
 import { auth } from "@/lib/auth"
 import { queryKeys } from "@/lib/query-keys"
 import ListsPageContent from "./_ListsContent"
@@ -11,9 +11,10 @@ export default async function ListsPage() {
 
   if (session?.user?.id) {
     await Promise.all([
-      queryClient.prefetchQuery({
+      queryClient.prefetchInfiniteQuery({
         queryKey: queryKeys.lists,
-        queryFn: () => getMyLists(),
+        queryFn: ({ pageParam }) => getMyListsPaginated(pageParam as string | undefined),
+        initialPageParam: undefined as string | undefined,
       }),
       queryClient.prefetchQuery({
         queryKey: queryKeys.publicLists,

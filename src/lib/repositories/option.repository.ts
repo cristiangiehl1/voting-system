@@ -64,6 +64,38 @@ export async function findOptionsByListId(
   >
 }
 
+type OptionWithVotes = NonNullable<Awaited<ReturnType<typeof findOptionsByListId>>>[number]
+
+export async function findOptionsByListIdPaginated(
+  listId: string,
+  includeVotes: boolean,
+  take: number,
+  cursor?: string
+): Promise<{ items: Array<OptionWithVotes>; nextCursor: string | null }> {
+  const items = await prisma.option.findMany({
+    where: { listId },
+    orderBy: { name: "asc" },
+    take: take + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    include: {
+      _count: { select: { votes: true } },
+      createdBy: { select: { id: true, name: true, imageUrl: true } },
+      ...(includeVotes
+        ? {
+            votes: {
+              include: { voter: { select: { id: true, name: true, email: true, imageUrl: true } } },
+              orderBy: { createdAt: "desc" },
+            },
+          }
+        : {}),
+    },
+  }) as unknown as Array<OptionWithVotes>
+
+  const nextCursor = items.length > take ? (items.pop()!.id) : null
+
+  return { items, nextCursor }
+}
+
 export async function findOptionByImageId(imageId: string) {
   return prisma.option.findFirst({
     where: { imageId },
