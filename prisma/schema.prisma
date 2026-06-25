@@ -63,6 +63,7 @@ model VotingList {
   participants Participant[]
   options      Option[]
   invites      Invite[]
+  notifications Notification[]
 }
 
 model Invite {
@@ -135,6 +136,7 @@ model Notification {
   readAt    DateTime?
   createdAt DateTime         @default(now())
 
+  list VotingList? @relation(fields: [listId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])

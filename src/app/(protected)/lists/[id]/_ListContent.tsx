@@ -40,6 +40,7 @@ import {
   Pencil,
   ExternalLink,
   ImageIcon,
+  Share2,
   ArrowRight,
 } from "lucide-react"
 import {
@@ -443,6 +444,16 @@ export default function ListPageContent() {
   const listImage = settingsForm.watch("image")
 
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  async function copyShareLink() {
+    const url = `${window.location.origin}/share/${listId}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success("Link público copiado!")
+    } catch {
+      toast.error("Erro ao copiar link")
+    }
+  }
   const [rankings, setRankings] = useState<Record<string, number>>({})
 
   useEffect(() => {
@@ -589,6 +600,11 @@ export default function ListPageContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={copyShareLink}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Compartilhar
+            </Button>
+
             <Link href={`/lists/${listId}/results`}>
               <Button variant="outline">
                 <Trophy className="mr-2 h-4 w-4" />

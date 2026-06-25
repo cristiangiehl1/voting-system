@@ -18,7 +18,7 @@ export default withAuth(
       authorized({ req, token }) {
         const pathname = req.nextUrl.pathname
         const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register")
-        const isPublicRoute = pathname === "/"
+        const isPublicRoute = pathname === "/" || pathname.startsWith("/share")
 
         if (isAuthRoute || isPublicRoute) {
           return true

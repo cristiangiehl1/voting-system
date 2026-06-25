@@ -4,6 +4,14 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import { revalidatePath } from "next/cache"
 import {
+  UnauthorizedError,
+  NotFoundError,
+  ForbiddenError,
+  BadRequestError,
+  ConflictError,
+  ValidationError,
+} from "@/lib/errors"
+import {
   findListsByUserId,
   findListById,
   findPublicLists,
@@ -71,32 +79,32 @@ export async function getPublicLists() {
 
 export async function getList(id: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(id)
-  if (!list) throw new Error("Lista não encontrada")
+  if (!list) return null
 
   const isParticipant =
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, id)) > 0
 
-  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) return null
 
   return list
 }
 
 export async function getOptions(listId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(listId)
-  if (!list) throw new Error("Lista não encontrada")
+  if (!list) return []
 
   const isParticipant =
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, listId)) > 0
 
-  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) return []
 
   const options = await findOptionsByListId(listId, list.revealVotes)
   if (!list.revealVotes) {
@@ -107,16 +115,16 @@ export async function getOptions(listId: string) {
 
 export async function getOptionsPaginated(listId: string, cursor?: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(listId)
-  if (!list) throw new Error("Lista não encontrada")
+  if (!list) return { items: [], nextCursor: null }
 
   const isParticipant =
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, listId)) > 0
 
-  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) return { items: [], nextCursor: null }
 
   const result = await findOptionsByListIdPaginated(listId, list.revealVotes, 20, cursor)
   if (!list.revealVotes) {
@@ -138,16 +146,16 @@ export async function getMyVotes(listId: string) {
 
 export async function getResults(listId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(listId)
-  if (!list) throw new Error("Lista não encontrada")
+  if (!list) return []
 
   const isParticipant =
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, listId)) > 0
 
-  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) return []
 
   const results = await getResultsByListId(listId, list.rankedVoting, list.maxRank, list.revealVotes)
   if (!list.revealVotes) {
@@ -168,11 +176,11 @@ export async function createList(
   isPublic?: boolean
 ) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const parsedExpiresAt = expiresAt ? new Date(expiresAt) : undefined
   if (parsedExpiresAt && isNaN(parsedExpiresAt.getTime())) {
-    throw new Error("Data de expiração inválida")
+    throw new BadRequestError("Data de expiração inválida")
   }
 
   const isRanked = rankedVoting ?? false
@@ -210,15 +218,15 @@ export async function updateList(
   }
 ) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(id)
-  if (!list) throw new Error("Lista não encontrada")
-  if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode editar a lista")
+  if (!list) throw new NotFoundError("Lista não encontrada")
+  if (list.createdById !== session.user.id) throw new ForbiddenError("Apenas o criador pode editar a lista")
 
   const parsedExpiresAt = data.expiresAt ? new Date(data.expiresAt) : null
   if (data.expiresAt && parsedExpiresAt && isNaN(parsedExpiresAt.getTime())) {
-    throw new Error("Data de expiração inválida")
+    throw new BadRequestError("Data de expiração inválida")
   }
 
   const isRanked = data.rankedVoting ?? false
@@ -250,12 +258,12 @@ export async function createOption(
   imageUrl?: string
 ) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(listId)
-  if (!list) throw new Error("Lista não encontrada")
+  if (!list) throw new NotFoundError("Lista não encontrada")
   if (list.createdById !== session.user.id && !list.allowParticipantsToAddOptions) {
-    throw new Error("Apenas o criador pode adicionar opções")
+    throw new ForbiddenError("Apenas o criador pode adicionar opções")
   }
 
   await createOptionRepository({
@@ -286,25 +294,25 @@ export async function createOption(
 
 export async function inviteParticipant(listId: string, email: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(listId)
-  if (!list) throw new Error("Lista não encontrada")
-  if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode convidar participantes")
+  if (!list) throw new NotFoundError("Lista não encontrada")
+  if (list.createdById !== session.user.id) throw new ForbiddenError("Apenas o criador pode convidar participantes")
 
-  if (email === session.user.email) throw new Error("Você não pode se convidar")
+  if (email === session.user.email) throw new BadRequestError("Você não pode se convidar")
 
   const user = await findUserByEmail(email)
   if (user) {
     const participant = await findParticipantByUserAndList(user.id, listId)
-    if (participant) throw new Error("Usuário já é participante desta lista")
+    if (participant) throw new ConflictError("Usuário já é participante desta lista")
   }
 
   const existingInvite = await prisma.invite.findUnique({
     where: { listId_email: { listId, email } },
   })
   if (existingInvite && existingInvite.status === "PENDING") {
-    throw new Error("Já existe um convite pendente para este email")
+    throw new ConflictError("Já existe um convite pendente para este email")
   }
 
   await createInvite(listId, email)
@@ -323,7 +331,7 @@ export async function inviteParticipant(listId: string, email: string) {
 
 export async function getInvites(listId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   return findInvitesByListId(listId)
 }
@@ -350,14 +358,14 @@ export async function countMyPendingInvites() {
 
 export async function acceptInvite(inviteId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const invite = await prisma.invite.findUnique({ where: { id: inviteId } })
-  if (!invite) throw new Error("Convite não encontrado")
-  if (invite.status !== "PENDING") throw new Error("Convite já foi respondido")
+  if (!invite) throw new NotFoundError("Convite não encontrado")
+  if (invite.status !== "PENDING") throw new BadRequestError("Convite já foi respondido")
 
   const user = await findUserById(session.user.id)
-  if (user?.email !== invite.email) throw new Error("Este convite não é para você")
+  if (user?.email !== invite.email) throw new ForbiddenError("Este convite não é para você")
 
   await prisma.$transaction([
     prisma.invite.update({ where: { id: inviteId }, data: { status: "ACCEPTED" } }),
@@ -383,14 +391,14 @@ export async function acceptInvite(inviteId: string) {
 
 export async function rejectInvite(inviteId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const invite = await prisma.invite.findUnique({ where: { id: inviteId } })
-  if (!invite) throw new Error("Convite não encontrado")
-  if (invite.status !== "PENDING") throw new Error("Convite já foi respondido")
+  if (!invite) throw new NotFoundError("Convite não encontrado")
+  if (invite.status !== "PENDING") throw new BadRequestError("Convite já foi respondido")
 
   const user = await findUserById(session.user.id)
-  if (user?.email !== invite.email) throw new Error("Este convite não é para você")
+  if (user?.email !== invite.email) throw new ForbiddenError("Este convite não é para você")
 
   await updateInviteStatus(inviteId, "REJECTED")
 
@@ -409,14 +417,14 @@ export async function rejectInvite(inviteId: string) {
 
 export async function cancelInvite(inviteId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const invite = await prisma.invite.findUnique({
     where: { id: inviteId },
     include: { list: true },
   })
-  if (!invite) throw new Error("Convite não encontrado")
-  if (invite.list.createdById !== session.user.id) throw new Error("Apenas o criador pode cancelar convites")
+  if (!invite) throw new NotFoundError("Convite não encontrado")
+  if (invite.list.createdById !== session.user.id) throw new ForbiddenError("Apenas o criador pode cancelar convites")
 
   await deleteInvite(inviteId)
 
@@ -425,11 +433,11 @@ export async function cancelInvite(inviteId: string) {
 
 export async function removeParticipant(listId: string, participantId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(listId)
-  if (!list) throw new Error("Lista não encontrada")
-  if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode remover participantes")
+  if (!list) throw new NotFoundError("Lista não encontrada")
+  if (list.createdById !== session.user.id) throw new ForbiddenError("Apenas o criador pode remover participantes")
 
   await deleteParticipant(participantId)
 
@@ -447,11 +455,11 @@ export async function updateOption(
   }
 ) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const option = await findOptionById(optionId)
-  if (!option) throw new Error("Opção não encontrada")
-  if (option.list.createdById !== session.user.id) throw new Error("Apenas o criador pode editar opções")
+  if (!option) throw new NotFoundError("Opção não encontrada")
+  if (option.list.createdById !== session.user.id) throw new ForbiddenError("Apenas o criador pode editar opções")
 
   await updateOptionRepository(optionId, {
     name: data.name,
@@ -467,12 +475,12 @@ export async function updateOption(
 
 export async function removeOption(optionId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const option = await findOptionById(optionId)
-  if (!option) throw new Error("Opção não encontrada")
+  if (!option) throw new NotFoundError("Opção não encontrada")
   if (option.list.createdById !== session.user.id && !option.list.allowParticipantsToAddOptions) {
-    throw new Error("Apenas o criador pode remover opções")
+    throw new ForbiddenError("Apenas o criador pode remover opções")
   }
 
   await deleteOptionRepository(optionId)
@@ -495,11 +503,11 @@ export async function removeOption(optionId: string) {
 
 export async function deleteList(id: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(id)
-  if (!list) throw new Error("Lista não encontrada")
-  if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode deletar a lista")
+  if (!list) throw new NotFoundError("Lista não encontrada")
+  if (list.createdById !== session.user.id) throw new ForbiddenError("Apenas o criador pode deletar a lista")
 
   const participants = await findParticipantsByListId(id)
   const notifications = participants
@@ -520,25 +528,25 @@ export async function deleteList(id: string) {
 
 export async function vote(optionId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const option = await findOptionById(optionId)
-  if (!option) throw new Error("Opção não encontrada")
+  if (!option) throw new NotFoundError("Opção não encontrada")
 
   const list = option.list
   if (list.expiresAt && new Date(list.expiresAt) < new Date()) {
-    throw new Error("A votação desta lista expirou")
+    throw new BadRequestError("A votação desta lista expirou")
   }
 
   if (list.rankedVoting) {
-    throw new Error("Esta lista usa votação por ranking. Use o formulário de ranking para votar.")
+    throw new BadRequestError("Esta lista usa votação por ranking. Use o formulário de ranking para votar.")
   }
 
   const isParticipant =
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, list.id)) > 0
 
-  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) throw new ForbiddenError("Você não é participante desta lista")
 
   await prisma.$transaction(async (tx) => {
     if (!isParticipant && list.isPublic) {
@@ -552,13 +560,13 @@ export async function vote(optionId: string) {
     const existing = await tx.vote.findUnique({
       where: { voterId_optionId: { voterId: session.user.id, optionId } },
     })
-    if (existing) throw new Error("Você já votou nesta opção")
+    if (existing) throw new ConflictError("Você já votou nesta opção")
 
     if (!list.allowMultipleVotes) {
       const votesInList = await tx.vote.count({
         where: { voterId: session.user.id, option: { listId: list.id } },
       })
-      if (votesInList > 0) throw new Error("Esta lista permite apenas um voto por participante")
+      if (votesInList > 0) throw new BadRequestError("Esta lista permite apenas um voto por participante")
     }
 
     await tx.vote.create({
@@ -584,10 +592,10 @@ export async function vote(optionId: string) {
 
 export async function removeVote(optionId: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const option = await findOptionById(optionId)
-  if (!option) throw new Error("Opção não encontrada")
+  if (!option) throw new NotFoundError("Opção não encontrada")
 
   await deleteVotesByVoterAndOption(session.user.id, optionId)
 
@@ -599,32 +607,32 @@ export async function submitRankedVotes(
   rankings: Array<{ optionId: string; rank: number }>
 ) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(listId)
-  if (!list) throw new Error("Lista não encontrada")
-  if (!list.rankedVoting) throw new Error("Esta lista não usa votação por ranking")
+  if (!list) throw new NotFoundError("Lista não encontrada")
+  if (!list.rankedVoting) throw new BadRequestError("Esta lista não usa votação por ranking")
   if (list.expiresAt && new Date(list.expiresAt) < new Date()) {
-    throw new Error("A votação desta lista expirou")
+    throw new BadRequestError("A votação desta lista expirou")
   }
 
   const isParticipant =
     list.createdById === session.user.id ||
     (await countParticipantsByUserAndList(session.user.id, list.id)) > 0
 
-  if (!isParticipant && !list.isPublic) throw new Error("Você não é participante desta lista")
+  if (!isParticipant && !list.isPublic) throw new ForbiddenError("Você não é participante desta lista")
 
   if (rankings.length > list.maxRank) {
-    throw new Error(`Máximo de ${list.maxRank} rankings permitidos`)
+    throw new ValidationError(`Máximo de ${list.maxRank} rankings permitidos`)
   }
 
   const rankSet = new Set<number>()
   for (const r of rankings) {
     if (r.rank < 1 || r.rank > (list.maxRank ?? 5)) {
-      throw new Error(`Rank inválido: ${r.rank}`)
+      throw new ValidationError(`Rank inválido: ${r.rank}`)
     }
     if (rankSet.has(r.rank)) {
-      throw new Error(`Rank duplicado: ${r.rank}`)
+      throw new ValidationError(`Rank duplicado: ${r.rank}`)
     }
     rankSet.add(r.rank)
   }
@@ -682,14 +690,14 @@ export async function countUnreadNotifications() {
 
 export async function markNotificationAsRead(id: string) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   await markAsRead(id)
 }
 
 export async function markAllNotificationsAsRead() {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   await markAllAsRead(session.user.id)
 }
@@ -707,10 +715,10 @@ export async function updateUserProfile(data: {
   imageUrl?: string | null
 }) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const user = await findUserById(session.user.id)
-  if (!user) throw new Error("Usuário não encontrado")
+  if (!user) throw new NotFoundError("Usuário não encontrado")
 
   await updateUserRepository(session.user.id, {
     name: data.name,
@@ -723,15 +731,43 @@ export async function updateUserProfile(data: {
 
 export async function updateListImage(listId: string, imageId: string | null, imageUrl: string | null) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const list = await findListById(listId)
-  if (!list) throw new Error("Lista não encontrada")
-  if (list.createdById !== session.user.id) throw new Error("Apenas o criador pode editar a lista")
+  if (!list) throw new NotFoundError("Lista não encontrada")
+  if (list.createdById !== session.user.id) throw new ForbiddenError("Apenas o criador pode editar a lista")
 
   await updateListRepository(listId, { imageId, imageUrl })
 
   revalidatePath(`/lists/${listId}`)
+}
+
+export async function getPublicList(id: string) {
+  const list = await findListById(id)
+  if (!list || !list.isPublic) return null
+  return list
+}
+
+export async function getPublicOptions(listId: string) {
+  const list = await findListById(listId)
+  if (!list || !list.isPublic) return []
+
+  const options = await findOptionsByListId(listId, list.revealVotes)
+  if (!list.revealVotes) {
+    return options.map((o) => ({ ...o, votes: [] }))
+  }
+  return options
+}
+
+export async function getPublicResults(listId: string) {
+  const list = await findListById(listId)
+  if (!list || !list.isPublic) return []
+
+  const results = await getResultsByListId(listId, list.rankedVoting, list.maxRank, list.revealVotes)
+  if (!list.revealVotes) {
+    return results.map((r) => ({ ...r, votes: [] }))
+  }
+  return results
 }
 
 export async function updateOptionImage(
@@ -740,11 +776,11 @@ export async function updateOptionImage(
   imageUrl: string | null
 ) {
   const session = await auth()
-  if (!session?.user?.id) throw new Error("Não autorizado")
+  if (!session?.user?.id) throw new UnauthorizedError()
 
   const option = await findOptionById(optionId)
-  if (!option) throw new Error("Opção não encontrada")
-  if (option.list.createdById !== session.user.id) throw new Error("Apenas o criador pode editar opções")
+  if (!option) throw new NotFoundError("Opção não encontrada")
+  if (option.list.createdById !== session.user.id) throw new ForbiddenError("Apenas o criador pode editar opções")
 
   await updateOptionRepository(optionId, {
     imageId: imageId ?? undefined,
