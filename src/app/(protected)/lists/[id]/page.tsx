@@ -159,7 +159,7 @@ export default function ListPage() {
     enabled: !!listId,
   })
 
-  const { data: myVotes = [] } = useQuery({
+  const { data: myVotes = [], isPending: myVotesLoading } = useQuery({
     queryKey: queryKeys.myVotes(listId),
     queryFn: () => getMyVotes(listId),
     enabled: !!listId && !!session?.user?.id,
@@ -1022,6 +1022,18 @@ export default function ListPage() {
                   )}
                 </CardContent>
               </AnimatedCard>
+            ) : list?.rankedVoting && myVotesLoading ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="animate-pulse rounded-xl border border-border bg-card">
+                    <div className="h-56 rounded-t-xl bg-muted" />
+                    <div className="space-y-3 p-4">
+                      <div className="h-5 w-2/3 rounded bg-muted" />
+                      <div className="h-4 w-full rounded bg-muted" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : list?.rankedVoting && isParticipant && !expired ? (
               <div>
                 <AnimatedCard className="mb-6 border-primary/30 bg-primary/5">
