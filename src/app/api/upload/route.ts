@@ -18,11 +18,11 @@ async function verifyImageOwnership(
   userId: string
 ): Promise<{ authorized: boolean; error?: string }> {
   const parts = publicId.split("/")
-  const folder = parts.length > 1 ? parts[0] : null
-  const fileId = parts.length > 1 ? parts.slice(1).join("/") : publicId
 
-  if (folder === "voting-system" && parts[1]) {
+  if (parts[0] === "voting-system" && parts[1]) {
     const typeFolder = parts[1]
+    const fileId = parts.slice(2).join("/")
+
     if (typeFolder === "users") {
       if (!fileId.startsWith(userId)) {
         return { authorized: false, error: "Você não pode modificar a imagem de outro usuário" }

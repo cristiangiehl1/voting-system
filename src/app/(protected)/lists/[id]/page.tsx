@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -650,7 +650,8 @@ export default function ListPage() {
                         setListImageUploading(false)
                       }
 
-                      updateListMutation.mutate({ ...data, imageId, imageUrl })
+                      const { image: _, ...dataWithoutImage } = data
+                      updateListMutation.mutate({ ...dataWithoutImage, imageId, imageUrl })
                     })}
                     className="space-y-4"
                   >
@@ -1145,6 +1146,7 @@ export default function ListPage() {
                                   const displayName = vote.voter.name || vote.voter.email || "Anônimo"
                                   return (
                                     <Avatar key={vote.voter.id} size="sm" title={displayName}>
+                                      {vote.voter.imageUrl && <AvatarImage src={vote.voter.imageUrl} alt={displayName} />}
                                       <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                                     </Avatar>
                                   )
@@ -1245,6 +1247,7 @@ export default function ListPage() {
                                 const displayName = vote.voter.name || vote.voter.email || "Anônimo"
                                 return (
                                   <Avatar key={vote.voter.id} size="sm" title={displayName}>
+                                    {vote.voter.imageUrl && <AvatarImage src={vote.voter.imageUrl} alt={displayName} />}
                                     <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                                   </Avatar>
                                 )
@@ -1416,20 +1419,34 @@ export default function ListPage() {
               <CardContent>
                 <ul className="space-y-3">
                   <li className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <p className="font-medium">{list.createdBy.name || "Criador"}</p>
-                      <p className="text-xs text-muted-foreground">{list.createdBy.email}</p>
+                    <div className="flex items-center gap-3">
+                      <Avatar size="sm">
+                        {list.createdBy.imageUrl && <AvatarImage src={list.createdBy.imageUrl} alt={list.createdBy.name || "Criador"} />}
+                        <AvatarFallback>{getInitials(list.createdBy.name || "Criador")}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{list.createdBy.name || "Criador"}</p>
+                        <p className="text-xs text-muted-foreground">{list.createdBy.email}</p>
+                      </div>
                     </div>
                     <Badge>Criador</Badge>
                   </li>
-                  {participants.map((participant) => (
+                  {participants.map((participant) => {
+                    const displayName = participant.user.name || "Sem nome"
+                    return (
                     <li
                       key={participant.id}
                       className="flex items-center justify-between rounded-lg border p-3"
                     >
-                      <div>
-                        <p className="font-medium">{participant.user.name || "Sem nome"}</p>
-                        <p className="text-xs text-muted-foreground">{participant.user.email}</p>
+                      <div className="flex items-center gap-3">
+                        <Avatar size="sm">
+                          {participant.user.imageUrl && <AvatarImage src={participant.user.imageUrl} alt={displayName} />}
+                          <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{displayName}</p>
+                          <p className="text-xs text-muted-foreground">{participant.user.email}</p>
+                        </div>
                       </div>
                       {isOwner && (
                         <Button
@@ -1442,7 +1459,8 @@ export default function ListPage() {
                         </Button>
                       )}
                     </li>
-                  ))}
+                    )
+                  })}
                 </ul>
 
                 {isOwner && invites.filter((inv) => inv.status === "PENDING").length > 0 && (

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 export async function findParticipantsByListId(listId: string) {
   return prisma.participant.findMany({
     where: { listId },
-    include: { user: { select: { id: true, name: true, email: true } } },
+    include: { user: { select: { id: true, name: true, email: true, imageUrl: true } } },
     orderBy: { joinedAt: "asc" },
   })
 }

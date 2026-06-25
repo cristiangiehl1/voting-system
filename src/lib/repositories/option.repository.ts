@@ -19,7 +19,7 @@ export async function findOptionsByListId(
         createdAt: Date
         voterId: string
         optionId: string
-        voter: { id: string; name: string | null; email: string | null }
+        voter: { id: string; name: string | null; email: string | null; imageUrl: string | null }
       }>
     }>
   > {
@@ -31,7 +31,7 @@ export async function findOptionsByListId(
       ...(includeVotes
         ? {
             votes: {
-              include: { voter: { select: { id: true, name: true, email: true } } },
+              include: { voter: { select: { id: true, name: true, email: true, imageUrl: true } } },
               orderBy: { createdAt: "desc" },
             },
           }
@@ -53,7 +53,7 @@ export async function findOptionsByListId(
         createdAt: Date
         voterId: string
         optionId: string
-        voter: { id: string; name: string | null; email: string | null }
+        voter: { id: string; name: string | null; email: string | null; imageUrl: string | null }
       }>
     }>
   >
