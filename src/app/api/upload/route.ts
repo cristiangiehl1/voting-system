@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth"
 import { NextResponse } from "next/server"
 import { cloudinaryService } from "@/lib/cloudinary"
-import { findListById } from "@/lib/repositories/list.repository"
-import { findOptionById } from "@/lib/repositories/option.repository"
+import { findListByImageId } from "@/lib/repositories/list.repository"
+import { findOptionByImageId } from "@/lib/repositories/option.repository"
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
   "image/png",
@@ -21,23 +21,23 @@ async function verifyImageOwnership(
 
   if (parts[0] === "voting-system" && parts[1]) {
     const typeFolder = parts[1]
-    const fileId = parts.slice(2).join("/")
 
     if (typeFolder === "users") {
+      const fileId = parts.slice(2).join("/")
       if (!fileId.startsWith(userId)) {
         return { authorized: false, error: "Você não pode modificar a imagem de outro usuário" }
       }
       return { authorized: true }
     }
     if (typeFolder === "lists") {
-      const lists = await findListById(fileId)
-      if (!lists || lists.createdById !== userId) {
+      const list = await findListByImageId(publicId)
+      if (!list || list.createdById !== userId) {
         return { authorized: false, error: "Você não pode modificar a imagem desta lista" }
       }
       return { authorized: true }
     }
     if (typeFolder === "options") {
-      const option = await findOptionById(fileId)
+      const option = await findOptionByImageId(publicId)
       if (!option || option.list.createdById !== userId) {
         return { authorized: false, error: "Você não pode modificar a imagem desta opção" }
       }

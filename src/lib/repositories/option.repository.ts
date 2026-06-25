@@ -59,6 +59,13 @@ export async function findOptionsByListId(
   >
 }
 
+export async function findOptionByImageId(imageId: string) {
+  return prisma.option.findFirst({
+    where: { imageId },
+    include: { list: true },
+  })
+}
+
 export async function findOptionById(id: string) {
   return prisma.option.findUnique({
     where: { id },

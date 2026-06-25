@@ -51,6 +51,16 @@ export async function findListsByUserId(userId: string): Promise<ListWithCount> 
   }) as unknown as ListWithCount
 }
 
+export async function findListByImageId(imageId: string): Promise<SingleListWithCount> {
+  return prisma.votingList.findFirst({
+    where: { imageId },
+    include: {
+      _count: { select: { options: true, participants: true } },
+      createdBy: { select: { name: true, email: true, imageUrl: true } },
+    },
+  }) as unknown as SingleListWithCount
+}
+
 export async function findListById(id: string): Promise<SingleListWithCount> {
   return prisma.votingList.findUnique({
     where: { id },
