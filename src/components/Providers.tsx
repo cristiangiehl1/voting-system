@@ -5,6 +5,8 @@ import { ThemeProvider } from "next-themes"
 import { Toaster } from "@/components/ui/sonner"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { useState, useEffect } from "react"
+import gsap from "gsap"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
 import type { Session } from "next-auth"
 
 const NON_RETRYABLE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "FORBIDDEN", "BAD_REQUEST", "CONFLICT", "VALIDATION_ERROR"]
