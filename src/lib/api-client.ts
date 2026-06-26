@@ -98,7 +98,12 @@ export const api = {
 
   getInvites: (listId: string) => request<any[]>(`/api/lists/${listId}/invites`),
   inviteParticipant: (listId: string, email: string) =>
-    request(`/api/lists/${listId}/invites`, { method: "POST", body: JSON.stringify({ email }) }),
+    request(`/api/lists/${listId}/invites`, { method: "POST", body: JSON.stringify({ emails: [email] }) }),
+  inviteParticipants: (listId: string, emails: string[]) =>
+    request<{ invited: number; errors: { email: string; error: string }[] }>(
+      `/api/lists/${listId}/invites`,
+      { method: "POST", body: JSON.stringify({ emails }) },
+    ),
   cancelInvite: (inviteId: string) =>
     request(`/api/invites/${inviteId}`, { method: "DELETE" }),
   getMyInvites: () => request<any[]>("/api/invites"),

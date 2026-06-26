@@ -42,6 +42,8 @@ import {
   ImageIcon,
   Share2,
   ArrowRight,
+  UserCheck,
+  Mail,
 } from "lucide-react"
 import { api } from "@/lib/api-client"
 import { AnimatedCard } from "@/components/AnimatedCard"
@@ -49,10 +51,8 @@ import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
 import {
   createOptionSchema,
-  inviteSchema,
   updateListSchema,
   type CreateOptionData,
-  type InviteData,
   type UpdateListData,
 } from "@/lib/schemas"
 import { useList } from "@/hooks/queries/useList"
@@ -60,6 +60,7 @@ import { useOptions } from "@/hooks/queries/useOptions"
 import { useParticipants } from "@/hooks/queries/useParticipants"
 import { useMyVotes } from "@/hooks/queries/useMyVotes"
 import { useInvites } from "@/hooks/queries/useInvites"
+import { useFriends } from "@/hooks/queries/useFriends"
 import { useCreateOption } from "@/hooks/mutations/useCreateOption"
 import { useAddParticipant } from "@/hooks/mutations/useAddParticipant"
 import { useRemoveParticipant } from "@/hooks/mutations/useRemoveParticipant"
@@ -137,6 +138,8 @@ export default function ListPageContent() {
 
   const [optionOpen, setOptionOpen] = useState(false)
   const [participantOpen, setParticipantOpen] = useState(false)
+  const [selectedEmails, setSelectedEmails] = useState<string[]>([])
+  const [manualEmail, setManualEmail] = useState("")
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const { data: list } = useList(listId)
@@ -163,6 +166,12 @@ export default function ListPageContent() {
   const canManageOptions = isOwner || (isParticipant && list?.allowParticipantsToAddOptions)
 
   const { data: invites = [] } = useInvites(listId, !!listId && isOwner)
+  const { data: friendships } = useFriends(!!session?.user?.id && participantOpen)
+
+  const friends = [
+    ...(friendships?.sent ?? []).filter((f) => f.status === "ACCEPTED").map((f) => f.addressee),
+    ...(friendships?.received ?? []).filter((f) => f.status === "ACCEPTED").map((f) => f.requester),
+  ]
 
   const cancelInviteMutation = useCancelInvite(listId,
     () => toast.success("Convite cancelado"),
@@ -210,11 +219,6 @@ export default function ListPageContent() {
     defaultValues: { listId, name: "", description: "", referenceUrl: "" },
   })
 
-  const participantForm = useForm<InviteData>({
-    resolver: zodResolver(inviteSchema),
-    defaultValues: { listId, email: "" },
-  })
-
   const [optionImageUploading, setOptionImageUploading] = useState(false)
   const optionImage = optionForm.watch("image")
 
@@ -228,10 +232,18 @@ export default function ListPageContent() {
   )
 
   const addParticipantMutation = useAddParticipant(listId,
-    () => {
-      participantForm.reset({ listId, email: "" })
+    (result) => {
+      setSelectedEmails([])
+      setManualEmail("")
+      const parts: string[] = []
+      if (result.invited > 0) {
+        parts.push(`${result.invited} convite${result.invited > 1 ? "s" : ""} enviado${result.invited > 1 ? "s" : ""}`)
+      }
+      if (result.errors.length > 0) {
+        parts.push(`${result.errors.length} erro${result.errors.length > 1 ? "s" : ""}`)
+      }
+      toast.success(parts.join(", "))
       setParticipantOpen(false)
-      toast.success("Convite enviado")
     },
     (error) => toast.error(error instanceof Error ? error.message : "Erro ao convidar"),
   )
@@ -870,7 +882,13 @@ export default function ListPageContent() {
                   </DialogContent>
                 </Dialog>
 
-                <Dialog open={participantOpen} onOpenChange={setParticipantOpen}>
+                <Dialog open={participantOpen} onOpenChange={(open) => {
+                  setParticipantOpen(open)
+                  if (!open) {
+                    setSelectedEmails([])
+                    setManualEmail("")
+                  }
+                }}>
                   <DialogTrigger
                     className="inline-flex"
                     render={
@@ -880,31 +898,128 @@ export default function ListPageContent() {
                       </Button>
                     }
                   />
-                  <DialogContent>
+                  <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Convidar participante</DialogTitle>
+                      <DialogTitle>Convidar participantes</DialogTitle>
                     </DialogHeader>
-                    <form
-                      onSubmit={participantForm.handleSubmit((data) => addParticipantMutation.mutate(data.email))}
-                      className="space-y-4"
-                    >
-                      <input type="hidden" {...participantForm.register("listId")} />
+                    <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="participantEmail">Email do usuário</Label>
-                        <Input
-                          id="participantEmail"
-                          type="email"
-                          placeholder="email@convidado.com"
-                          {...participantForm.register("email")}
-                        />
-                        {participantForm.formState.errors.email && (
-                          <p className="text-xs text-destructive">{participantForm.formState.errors.email.message}</p>
-                        )}
+                        <Label>Adicionar por email</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="email@convidado.com"
+                            value={manualEmail}
+                            onChange={(e) => setManualEmail(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && manualEmail.includes("@")) {
+                                e.preventDefault()
+                                if (!selectedEmails.includes(manualEmail)) {
+                                  setSelectedEmails((prev) => [...prev, manualEmail])
+                                }
+                                setManualEmail("")
+                              }
+                            }}
+                          />
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              if (manualEmail.includes("@") && !selectedEmails.includes(manualEmail)) {
+                                setSelectedEmails((prev) => [...prev, manualEmail])
+                                setManualEmail("")
+                              }
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <Button type="submit" className="w-full" disabled={addParticipantMutation.isPending}>
-                        {addParticipantMutation.isPending ? "Convidando..." : "Convidar"}
+
+                      {friends.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-1.5">
+                            <UserCheck className="h-3.5 w-3.5" />
+                            Amigos
+                          </Label>
+                          <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border p-1">
+                            {friends.map((friend) => {
+                              const isSelected = selectedEmails.includes(friend.email ?? "")
+                              return (
+                                <button
+                                  key={friend.id}
+                                  type="button"
+                                  onClick={() => {
+                                    if (!friend.email) return
+                                    setSelectedEmails((prev) =>
+                                      isSelected
+                                        ? prev.filter((e) => e !== friend.email)
+                                        : [...prev, friend.email!],
+                                    )
+                                  }}
+                                  className={`flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm transition-colors ${
+                                    isSelected
+                                      ? "bg-primary/10 text-primary"
+                                      : "hover:bg-secondary/50"
+                                  }`}
+                                >
+                                  <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${
+                                    isSelected
+                                      ? "bg-primary text-primary-foreground"
+                                      : "bg-secondary text-secondary-foreground"
+                                  }`}>
+                                    {(friend.name?.[0] ?? friend.email?.[0] ?? "?").toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium">{friend.name || "Usuário"}</p>
+                                    <p className="truncate text-xs text-muted-foreground">{friend.email}</p>
+                                  </div>
+                                  {isSelected && <Check className="h-4 w-4 shrink-0" />}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedEmails.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Selecionados ({selectedEmails.length})</Label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {selectedEmails.map((email) => (
+                              <Badge
+                                key={email}
+                                variant="secondary"
+                                className="gap-1 pr-1"
+                              >
+                                {email}
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedEmails((prev) => prev.filter((e) => e !== email))}
+                                  className="ml-0.5 rounded-full p-0.5 hover:bg-secondary-foreground/10"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <Button
+                        className="w-full gap-1.5"
+                        onClick={() => addParticipantMutation.mutate(selectedEmails)}
+                        disabled={addParticipantMutation.isPending || selectedEmails.length === 0}
+                      >
+                        {addParticipantMutation.isPending ? (
+                          "Convidando..."
+                        ) : (
+                          <>
+                            <Mail className="h-4 w-4" />
+                            Convidar {selectedEmails.length > 0 && `(${selectedEmails.length})`}
+                          </>
+                        )}
                       </Button>
-                    </form>
+                    </div>
                   </DialogContent>
                 </Dialog>
               </>

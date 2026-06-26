@@ -7,7 +7,7 @@ import { findUserByEmail } from "@/lib/repositories/user.repository"
 import { findParticipantByUserAndList } from "@/lib/repositories/participant.repository"
 import { createNotification } from "@/lib/repositories/notification.repository"
 
-export async function GET(req: Request, { params }: { params: Promise<{ listId: string }> }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ listId: string }> }) {
   const { listId } = await params
   const session = await auth()
   if (!session?.user?.id) {
@@ -31,37 +31,55 @@ export async function POST(req: Request, { params }: { params: Promise<{ listId:
     return NextResponse.json({ error: "Apenas o criador pode convidar participantes" }, { status: 403 })
   }
 
-  const { email } = await req.json()
-  if (!email) return NextResponse.json({ error: "Email é obrigatório" }, { status: 400 })
-  if (email === session.user.email) {
-    return NextResponse.json({ error: "Você não pode se convidar" }, { status: 400 })
+  const body = await req.json()
+  const emails: string[] = body.emails ?? (body.email ? [body.email] : [])
+
+  if (emails.length === 0) {
+    return NextResponse.json({ error: "Pelo menos um email é obrigatório" }, { status: 400 })
   }
 
-  const user = await findUserByEmail(email)
-  if (user) {
-    const participant = await findParticipantByUserAndList(user.id, listId)
-    if (participant) {
-      return NextResponse.json({ error: "Usuário já é participante desta lista" }, { status: 409 })
+  const result = { invited: 0, errors: [] as { email: string; error: string }[] }
+
+  for (const email of emails) {
+    if (!email || !email.includes("@")) {
+      result.errors.push({ email, error: "Email inválido" })
+      continue
+    }
+
+    if (email === session.user.email) {
+      result.errors.push({ email, error: "Você não pode se convidar" })
+      continue
+    }
+
+    const user = await findUserByEmail(email)
+    if (user) {
+      const participant = await findParticipantByUserAndList(user.id, listId)
+      if (participant) {
+        result.errors.push({ email, error: "Usuário já é participante" })
+        continue
+      }
+    }
+
+    const existingInvite = await prisma.invite.findUnique({
+      where: { listId_email: { listId, email } },
+    })
+    if (existingInvite && existingInvite.status === "PENDING") {
+      result.errors.push({ email, error: "Convite já pendente" })
+      continue
+    }
+
+    await createInvite(listId, email)
+    result.invited++
+
+    if (user) {
+      await createNotification({
+        userId: user.id,
+        type: "INVITE_RECEIVED",
+        title: `${session.user.name ?? session.user.email} te convidou para "${list.name}"`,
+        listId,
+      })
     }
   }
 
-  const existingInvite = await prisma.invite.findUnique({
-    where: { listId_email: { listId, email } },
-  })
-  if (existingInvite && existingInvite.status === "PENDING") {
-    return NextResponse.json({ error: "Já existe um convite pendente para este email" }, { status: 409 })
-  }
-
-  await createInvite(listId, email)
-
-  if (user) {
-    await createNotification({
-      userId: user.id,
-      type: "INVITE_RECEIVED",
-      title: `${session.user.name ?? session.user.email} te convidou para "${list.name}"`,
-      listId,
-    })
-  }
-
-  return NextResponse.json({ success: true })
+  return NextResponse.json(result)
 }
