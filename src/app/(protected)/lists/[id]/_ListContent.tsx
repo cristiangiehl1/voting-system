@@ -312,7 +312,7 @@ export default function ListPageContent() {
           {list.imageUrl ? (
             <>
               <div
-                className="absolute inset-0 -top-32 -bottom-32 scale-110 opacity-20 blur-3xl pointer-events-none"
+                className="absolute inset-0 opacity-20 blur-3xl pointer-events-none"
                 style={{
                   maskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
                   WebkitMaskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
