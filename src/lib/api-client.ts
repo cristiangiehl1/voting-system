@@ -11,6 +11,20 @@ class ApiError extends Error {
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {}
+
+  if (typeof window === "undefined") {
+    try {
+      const { cookies } = await import("next/headers")
+      const cookieStore = await cookies()
+      const allCookies = cookieStore.getAll()
+        .map((c) => `${c.name}=${c.value}`)
+        .join("; ")
+      if (allCookies) {
+        headers["Cookie"] = allCookies
+      }
+    } catch {}
+  }
+
   if (options?.body && !(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json"
   }
