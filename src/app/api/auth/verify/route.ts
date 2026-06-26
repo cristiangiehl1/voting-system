@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const isSecure = process.env.NODE_ENV === "production"
     const cookieName = isSecure ? "__Secure-next-auth.session-token" : "next-auth.session-token"
 
-    const response = NextResponse.redirect(new URL("/profile", request.url))
+    const response = NextResponse.redirect(new URL("/", request.url))
 
     response.cookies.set(cookieName, sessionToken, {
       httpOnly: true,

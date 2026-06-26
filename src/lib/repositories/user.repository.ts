@@ -27,6 +27,20 @@ export async function updateUser(
   return prisma.user.update({ where: { id }, data })
 }
 
+export async function updateUserResetToken(id: string, resetToken: string | null) {
+  return prisma.user.update({
+    where: { id },
+    data: { resetToken },
+  })
+}
+
+export async function updateUserPassword(id: string, passwordHash: string) {
+  return prisma.user.update({
+    where: { id },
+    data: { passwordHash, resetToken: null },
+  })
+}
+
 export async function updateUserVerification(id: string, verificationToken: string | null) {
   return prisma.user.update({
     where: { id },
