@@ -9,8 +9,8 @@ import { countParticipantsByUserAndList } from "@/lib/repositories/participant.r
 import { findParticipantsByListId } from "@/lib/repositories/participant.repository"
 import { createManyNotifications } from "@/lib/repositories/notification.repository"
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function GET(req: Request, { params }: { params: Promise<{ listId: string }> }) {
+  const { listId: id } = await params
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
@@ -28,8 +28,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json(list)
 }
 
-export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function PUT(req: Request, { params }: { params: Promise<{ listId: string }> }) {
+  const { listId: id } = await params
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
@@ -65,8 +65,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export async function DELETE(req: Request, { params }: { params: Promise<{ listId: string }> }) {
+  const { listId: id } = await params
   const session = await auth()
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 })
