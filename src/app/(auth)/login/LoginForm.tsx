@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { signIn } from "next-auth/react"
@@ -91,9 +91,12 @@ export function LoginForm() {
               </Button>
             </form>
             <div className="mt-4 flex items-center justify-between text-sm">
-              <Link href="/forgot-password" className="text-muted-foreground hover:text-foreground transition-colors">
+              <a
+                href="/forgot-password"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
                 Esqueceu a senha?
-              </Link>
+              </a>
               <span>
                 Não tem conta?{" "}
                 <Link href="/register" className="font-medium text-primary hover:underline">
