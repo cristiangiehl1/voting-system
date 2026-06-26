@@ -9,8 +9,6 @@ import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import type { Session } from "next-auth"
 
-const NON_RETRYABLE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "FORBIDDEN", "BAD_REQUEST", "CONFLICT", "VALIDATION_ERROR"]
-
 export function Providers({
   children,
   session,
@@ -20,20 +18,8 @@ export function Providers({
 }) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
-      queries: {
-        retry: (failureCount, error) => {
-          const err = error as { code?: string }
-          if (err.code && NON_RETRYABLE_CODES.includes(err.code)) return false
-          return failureCount < 3
-        },
-      },
-      mutations: {
-        retry: (failureCount, error) => {
-          const err = error as { code?: string }
-          if (err.code && NON_RETRYABLE_CODES.includes(err.code)) return false
-          return failureCount < 3
-        },
-      },
+      queries: { retry: false },
+      mutations: { retry: false },
     },
   }))
 
