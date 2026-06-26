@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Trophy, Medal, Crown, Frown, ListOrdered, ExternalLink } from "lucide-react"
-import { getResults, getList } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { AnimatedCounter } from "@/components/AnimatedCounter"
 import { VoteBars } from "@/components/VoteBars"
@@ -73,13 +73,13 @@ export default function ResultsPageContent() {
 
   const { data: list, isPending: listLoading } = useQuery({
     queryKey: queryKeys.list(listId),
-    queryFn: () => getList(listId),
+    queryFn: () => api.getList(listId),
     enabled: !!listId,
   })
 
   const { data: results = [], isPending: resultsLoading } = useQuery({
     queryKey: queryKeys.results(listId),
-    queryFn: () => getResults(listId),
+    queryFn: () => api.getResults(listId),
     enabled: !!listId,
     refetchInterval: 10000,
   })

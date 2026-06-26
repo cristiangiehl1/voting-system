@@ -1,7 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { getPublicList, getPublicOptions, getMyVotes } from "@/app/actions/lists"
-import { auth } from "@/lib/auth"
+import { serverApi } from "@/lib/server-api"
 import { queryKeys } from "@/lib/query-keys"
 import { notFound } from "next/navigation"
 import ShareContent from "./_ShareContent"
@@ -13,28 +12,23 @@ export default async function SharePage({
 }) {
   const { id } = await params
   const queryClient = new QueryClient()
-  const session = await auth()
 
-  const list = await getPublicList(id)
+  const list = await serverApi.getPublicList(id)
   if (!list) notFound()
 
   await Promise.all([
     queryClient.prefetchQuery({
       queryKey: queryKeys.publicList(id),
-      queryFn: () => getPublicList(id),
+      queryFn: () => list,
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.publicOptions(id),
-      queryFn: () => getPublicOptions(id),
+      queryFn: () => serverApi.getPublicOptions(id),
     }),
-    ...(session?.user?.id
-      ? [
-          queryClient.prefetchQuery({
-            queryKey: queryKeys.myVotes(id),
-            queryFn: () => getMyVotes(id),
-          }),
-        ]
-      : []),
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.myVotes(id),
+      queryFn: () => serverApi.getMyVotes(id),
+    }),
   ])
 
   return (

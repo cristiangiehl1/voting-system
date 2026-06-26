@@ -10,7 +10,7 @@ import { PageTransition } from "@/components/PageTransition"
 import { ArrowLeft, Bell, CheckCheck, ExternalLink, Vote, Frown } from "lucide-react"
 import { toast } from "sonner"
 import { queryKeys } from "@/lib/query-keys"
-import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead, countUnreadNotifications } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { formatDistanceToNow } from "@/lib/utils"
 
 const NOTIFICATION_ICONS: Record<string, string> = {
@@ -30,21 +30,21 @@ export function NotificationsContent() {
 
   const { data: notifications = [] } = useQuery({
     queryKey: queryKeys.notifications,
-    queryFn: () => getMyNotifications(),
+    queryFn: () => api.getMyNotifications(),
     enabled: !!session?.user?.id,
     refetchInterval: 15_000,
   })
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: queryKeys.notificationCount,
-    queryFn: () => countUnreadNotifications(),
+    queryFn: () => api.countUnreadNotifications(),
     enabled: !!session?.user?.id,
     refetchInterval: 15_000,
   })
 
   const markReadMutation = useMutation({
     mutationFn: async (id: string) => {
-      await markNotificationAsRead(id)
+      await api.markNotificationAsRead(id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
@@ -55,7 +55,7 @@ export function NotificationsContent() {
 
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
-      await markAllNotificationsAsRead()
+      await api.markAllNotificationsAsRead()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications })

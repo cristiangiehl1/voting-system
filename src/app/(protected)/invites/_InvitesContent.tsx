@@ -10,7 +10,7 @@ import { CardContent, CardHeader, CardTitle, CardDescription } from "@/component
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
-import { getMyInvites, acceptInvite, rejectInvite } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { toast } from "sonner"
 
 function formatDate(date: Date | string) {
@@ -39,12 +39,12 @@ export default function InvitesPageContent() {
 
   const { data: invites = [], isPending } = useQuery({
     queryKey: queryKeys.myInvites,
-    queryFn: () => getMyInvites(),
+    queryFn: () => api.getMyInvites(),
     enabled: !!session?.user?.id,
   })
 
   const acceptMutation = useMutation({
-    mutationFn: (inviteId: string) => acceptInvite(inviteId),
+    mutationFn: (inviteId: string) => api.acceptInvite(inviteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.myInvites })
       queryClient.invalidateQueries({ queryKey: queryKeys.lists })
@@ -54,7 +54,7 @@ export default function InvitesPageContent() {
   })
 
   const rejectMutation = useMutation({
-    mutationFn: (inviteId: string) => rejectInvite(inviteId),
+    mutationFn: (inviteId: string) => api.rejectInvite(inviteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.myInvites })
       toast.success("Convite recusado")

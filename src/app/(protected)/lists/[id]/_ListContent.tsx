@@ -43,27 +43,7 @@ import {
   Share2,
   ArrowRight,
 } from "lucide-react"
-import {
-  getMyLists,
-  getList,
-  getOptions,
-  getOptionsPaginated,
-  getParticipants,
-  getMyVotes,
-  createOption,
-  inviteParticipant,
-  getInvites,
-  cancelInvite,
-  removeParticipant,
-  vote,
-  removeVote,
-  updateOptionImage,
-  updateOption,
-  removeOption,
-  updateList,
-  deleteList,
-  submitRankedVotes,
-} from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
@@ -143,13 +123,13 @@ export default function ListPageContent() {
 
   const { data: list } = useQuery({
     queryKey: queryKeys.list(listId),
-    queryFn: () => getList(listId),
+    queryFn: () => api.getList(listId),
     enabled: !!listId,
   })
 
   const { data: optionsData, isPending: optionsLoading, fetchNextPage: fetchNextOptions, hasNextPage: hasNextOptions, isFetchingNextPage: fetchingNextOptions } = useInfiniteQuery({
     queryKey: queryKeys.options(listId),
-    queryFn: ({ pageParam }) => getOptionsPaginated(listId, pageParam as string | undefined),
+    queryFn: ({ pageParam }) => api.getOptionsPaginated(listId, pageParam as string | undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!listId,
@@ -158,19 +138,19 @@ export default function ListPageContent() {
 
   const { data: participants = [] } = useQuery({
     queryKey: queryKeys.participants(listId),
-    queryFn: () => getParticipants(listId),
+    queryFn: () => api.getParticipants(listId),
     enabled: !!listId,
   })
 
   const { data: myVotes = [] } = useQuery({
     queryKey: queryKeys.myVotes(listId),
-    queryFn: () => getMyVotes(listId),
+    queryFn: () => api.getMyVotes(listId),
     enabled: !!listId && !!session?.user?.id,
   })
 
   const { data: userLists = [] } = useQuery({
     queryKey: queryKeys.lists,
-    queryFn: () => getMyLists(),
+    queryFn: () => api.getMyLists(),
     enabled: !!session?.user?.id,
   })
 
@@ -186,13 +166,13 @@ export default function ListPageContent() {
 
   const { data: invites = [] } = useQuery({
     queryKey: queryKeys.invites(listId),
-    queryFn: () => getInvites(listId),
+    queryFn: () => api.getInvites(listId),
     enabled: !!listId && isOwner,
   })
 
   const cancelInviteMutation = useMutation({
     mutationFn: async (inviteId: string) => {
-      await cancelInvite(inviteId)
+      await api.cancelInvite(inviteId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.invites(listId) })
@@ -252,7 +232,7 @@ export default function ListPageContent() {
 
   const addOptionMutation = useMutation({
     mutationFn: async (data: CreateOptionData & { imageId?: string; imageUrl?: string }) => {
-      await createOption(data.name, data.listId, data.description, data.referenceUrl, data.imageId, data.imageUrl)
+      await api.createOption(data.listId, { name: data.name, description: data.description, referenceUrl: data.referenceUrl, imageId: data.imageId, imageUrl: data.imageUrl })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
@@ -265,7 +245,7 @@ export default function ListPageContent() {
 
   const addParticipantMutation = useMutation({
     mutationFn: async (data: InviteData) => {
-      await inviteParticipant(data.listId, data.email)
+      await api.inviteParticipant(data.listId, data.email)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.participants(listId) })
@@ -279,7 +259,7 @@ export default function ListPageContent() {
 
   const removeParticipantMutation = useMutation({
     mutationFn: async (participantId: string) => {
-      await removeParticipant(listId, participantId)
+      await api.removeParticipant(listId, participantId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.participants(listId) })
@@ -291,7 +271,7 @@ export default function ListPageContent() {
 
   const voteMutation = useMutation({
     mutationFn: async (optionId: string) => {
-      await vote(optionId)
+      await api.vote(optionId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
@@ -304,7 +284,7 @@ export default function ListPageContent() {
 
   const removeVoteMutation = useMutation({
     mutationFn: async (optionId: string) => {
-      await removeVote(optionId)
+      await api.removeVote(optionId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
@@ -317,7 +297,7 @@ export default function ListPageContent() {
 
   const updateListMutation = useMutation({
     mutationFn: async (data: UpdateListData & { imageId?: string; imageUrl?: string }) => {
-      await updateList(listId, data)
+      await api.updateList(listId, data)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.list(listId) })
@@ -331,7 +311,7 @@ export default function ListPageContent() {
 
   const updateOptionImageMutation = useMutation({
     mutationFn: async ({ optionId, imageId, imageUrl }: { optionId: string; imageId: string; imageUrl: string }) => {
-      await updateOptionImage(optionId, imageId, imageUrl)
+      await api.updateOptionImage(optionId, imageId, imageUrl)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
@@ -383,7 +363,7 @@ export default function ListPageContent() {
 
   const updateOptionMutation = useMutation({
     mutationFn: async (data: { optionId: string; name: string; description?: string; referenceUrl?: string; imageId?: string; imageUrl?: string }) => {
-      await updateOption(data.optionId, {
+      await api.updateOption(data.optionId, {
         name: data.name,
         description: data.description,
         referenceUrl: data.referenceUrl,
@@ -405,7 +385,7 @@ export default function ListPageContent() {
 
   const removeOptionMutation = useMutation({
     mutationFn: async (optionId: string) => {
-      await removeOption(optionId)
+      await api.removeOption(optionId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
@@ -416,7 +396,7 @@ export default function ListPageContent() {
 
   const deleteListMutation = useMutation({
     mutationFn: async () => {
-      await deleteList(listId)
+      await api.deleteList(listId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.lists })
@@ -429,7 +409,7 @@ export default function ListPageContent() {
 
   const submitRankedMutation = useMutation({
     mutationFn: async (rankings: Array<{ optionId: string; rank: number }>) => {
-      await submitRankedVotes(listId, rankings)
+      await api.submitRankedVotes(listId, rankings)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
@@ -1175,7 +1155,7 @@ export default function ListPageContent() {
                             <div className="mb-4">
                               <p className="mb-1 text-xs font-medium text-muted-foreground">Votaram:</p>
                               <div className="flex flex-wrap gap-1">
-                                {option.votes.map((vote) => {
+                                {option.votes.map((vote: any) => {
                                   const displayName = vote.voter.name || vote.voter.email || "Anônimo"
                                   return (
                                     <Avatar key={vote.voter.id} size="sm" title={displayName}>
@@ -1286,15 +1266,15 @@ export default function ListPageContent() {
                           <div className="mb-4">
                             <p className="mb-1 text-xs font-medium text-muted-foreground">Votaram:</p>
                             <div className="flex flex-wrap gap-1">
-                              {option.votes.map((vote) => {
-                                const displayName = vote.voter.name || vote.voter.email || "Anônimo"
-                                return (
-                                  <Avatar key={vote.voter.id} size="sm" title={displayName}>
-                                    {vote.voter.imageUrl && <AvatarImage src={vote.voter.imageUrl} alt={displayName} />}
-                                    <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-                                  </Avatar>
-                                )
-                              })}
+                              {option.votes.map((vote: any) => {
+                                  const displayName = vote.voter.name || vote.voter.email || "Anônimo"
+                                  return (
+                                    <Avatar key={vote.voter.id} size="sm" title={displayName}>
+                                      {vote.voter.imageUrl && <AvatarImage src={vote.voter.imageUrl} alt={displayName} />}
+                                      <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+                                    </Avatar>
+                                  )
+                                })}
                             </div>
                           </div>
                         )}

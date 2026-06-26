@@ -15,7 +15,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Scale, LogOut, UserCircle, ListChecks, Mail, Bell, History } from "lucide-react"
 import { queryKeys } from "@/lib/query-keys"
-import { countMyPendingInvites, getMyNotifications, markNotificationAsRead, countUnreadNotifications } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { formatDistanceToNow } from "@/lib/utils"
 
 const NOTIFICATION_ICONS: Record<string, string> = {
@@ -35,27 +35,27 @@ export function Header() {
 
   const { data: pendingInvitesCount = 0 } = useQuery({
     queryKey: [...queryKeys.myInvites, "count"],
-    queryFn: () => countMyPendingInvites(),
+    queryFn: () => api.countMyPendingInvites(),
     enabled: !!session?.user?.id,
     refetchInterval: 30_000,
   })
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: queryKeys.notificationCount,
-    queryFn: () => countUnreadNotifications(),
+    queryFn: () => api.countUnreadNotifications(),
     enabled: !!session?.user?.id,
     refetchInterval: 15_000,
   })
 
   const { data: notifications = [] } = useQuery({
     queryKey: queryKeys.notifications,
-    queryFn: () => getMyNotifications(),
+    queryFn: () => api.getMyNotifications(),
     enabled: !!session?.user?.id,
   })
 
   const markReadMutation = useMutation({
     mutationFn: async (id: string) => {
-      await markNotificationAsRead(id)
+      await api.markNotificationAsRead(id)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications })

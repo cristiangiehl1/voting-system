@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
 import { useMutation } from "@tanstack/react-query"
-import { createList } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,17 +39,17 @@ export function CreateListDialog({ open, onOpenChange }: Props) {
 
   const createMutation = useMutation({
     mutationFn: async (data: CreateListData & { imageId?: string; imageUrl?: string }) => {
-      return createList(
-        data.name,
-        data.description || undefined,
-        data.expiresAt || undefined,
-        data.revealVotes,
-        data.allowMultipleVotes,
-        data.rankedVoting,
-        data.maxRank,
-        data.allowParticipantsToAddOptions,
-        data.isPublic
-      )
+      return api.createList({
+        name: data.name,
+        description: data.description || undefined,
+        expiresAt: data.expiresAt || undefined,
+        revealVotes: data.revealVotes,
+        allowMultipleVotes: data.allowMultipleVotes,
+        rankedVoting: data.rankedVoting,
+        maxRank: data.maxRank,
+        allowParticipantsToAddOptions: data.allowParticipantsToAddOptions,
+        isPublic: data.isPublic,
+      })
     },
     onSuccess: (listId) => {
       form.reset()

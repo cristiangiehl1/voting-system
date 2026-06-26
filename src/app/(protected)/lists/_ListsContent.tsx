@@ -24,7 +24,7 @@ import { AnimatedCard } from "@/components/AnimatedCard"
 import { CreateListDialog } from "@/components/CreateListDialog"
 import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
-import { getMyLists, getPublicLists, getMyListsPaginated } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 
 function formatDate(date: Date | string | null) {
   if (!date) return null
@@ -47,7 +47,7 @@ export default function ListsPageContent() {
 
   const { data: listsData, isPending: listsLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
     queryKey: queryKeys.lists,
-    queryFn: ({ pageParam }) => getMyListsPaginated(pageParam as string | undefined),
+    queryFn: ({ pageParam }) => api.getMyListsPaginated(pageParam as string | undefined),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!session?.user?.id,
@@ -56,7 +56,7 @@ export default function ListsPageContent() {
 
   const { data: publicLists = [], isPending: publicListsLoading } = useQuery({
     queryKey: queryKeys.publicLists,
-    queryFn: () => getPublicLists(),
+    queryFn: () => api.getPublicLists(),
   })
 
   const ownedLists = lists.filter((l) => l.createdById === session?.user?.id)

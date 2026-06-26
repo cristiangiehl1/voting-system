@@ -15,7 +15,7 @@ import { PageTransition } from "@/components/PageTransition"
 import { ListChecks, Users, Vote, ArrowLeft, Camera, Loader2, Check } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { updateUserProfile } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import { updateProfileSchema, type UpdateProfileData } from "@/lib/schemas"
 
@@ -49,7 +49,7 @@ export function ProfileContent({
 
   const updateNameMutation = useMutation({
     mutationFn: async (data: UpdateProfileData) => {
-      await updateUserProfile({ name: data.name })
+      await api.updateUserProfile({ name: data.name })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.lists })
@@ -61,7 +61,7 @@ export function ProfileContent({
 
   const updateAvatarMutation = useMutation({
     mutationFn: async (data: { imageId: string | null; imageUrl: string | null }) => {
-      await updateUserProfile(data)
+      await api.updateUserProfile(data)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.lists })

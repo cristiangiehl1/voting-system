@@ -1,20 +1,16 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { getMyVotingHistory } from "@/app/actions/lists"
-import { auth } from "@/lib/auth"
+import { serverApi } from "@/lib/server-api"
 import { queryKeys } from "@/lib/query-keys"
 import { HistoryContent } from "./HistoryContent"
 
 export default async function HistoryPage() {
-  const session = await auth()
   const queryClient = new QueryClient()
 
-  if (session?.user?.id) {
-    await queryClient.prefetchQuery({
-      queryKey: queryKeys.votingHistory,
-      queryFn: () => getMyVotingHistory(),
-    })
-  }
+  await queryClient.prefetchQuery({
+    queryKey: queryKeys.votingHistory,
+    queryFn: () => serverApi.getMyVotingHistory(),
+  })
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>

@@ -24,7 +24,7 @@ import {
 import { AnimatedHero } from "@/components/AnimatedHero"
 import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
-import { getPublicLists } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { useReducedMotion } from "@/hooks/useReducedMotion"
@@ -98,7 +98,7 @@ export function HomeContent({
 
   const { data: publicLists = [] } = useQuery({
     queryKey: queryKeys.publicLists,
-    queryFn: () => getPublicLists(),
+    queryFn: () => api.getPublicLists(),
   })
 
   useLayoutEffect(() => {

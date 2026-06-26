@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Trophy, Medal, Crown, Frown, ListOrdered, ExternalLink } from "lucide-react"
-import { getPublicList, getPublicResults } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { AnimatedCounter } from "@/components/AnimatedCounter"
 import { VoteBars } from "@/components/VoteBars"
@@ -73,13 +73,13 @@ export default function ShareResultsContent() {
 
   const { data: list, isPending: listLoading } = useQuery({
     queryKey: queryKeys.publicList(listId),
-    queryFn: () => getPublicList(listId),
+    queryFn: () => api.getPublicList(listId),
     enabled: !!listId,
   })
 
   const { data: results = [], isPending: resultsLoading } = useQuery({
     queryKey: queryKeys.publicResults(listId),
-    queryFn: () => getPublicResults(listId),
+    queryFn: () => api.getPublicResults(listId),
     enabled: !!listId,
     refetchInterval: 10000,
   })

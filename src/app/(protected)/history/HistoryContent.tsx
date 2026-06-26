@@ -11,7 +11,7 @@ import { PageTransition } from "@/components/PageTransition"
 import { ArrowLeft, Vote, Trophy, ListOrdered, ExternalLink, CalendarDays } from "lucide-react"
 import { toast } from "sonner"
 import { queryKeys } from "@/lib/query-keys"
-import { getMyVotingHistory } from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { formatDistanceToNow } from "@/lib/utils"
 
 function formatDate(date: Date | string) {
@@ -28,7 +28,7 @@ export function HistoryContent() {
 
   const { data: history = [], isPending } = useQuery({
     queryKey: queryKeys.votingHistory,
-    queryFn: () => getMyVotingHistory(),
+    queryFn: () => api.getMyVotingHistory(),
     enabled: !!session?.user?.id,
   })
 
@@ -112,7 +112,7 @@ export function HistoryContent() {
                         por {entry.list.createdBy.name || "Anônimo"} &middot; Criada em {formatDate(entry.list.createdAt)}
                       </p>
                       <div className="flex flex-wrap gap-1.5">
-                        {entry.votes.map((vote, i) => (
+                        {entry.votes.map((vote: any, i: any) => (
                           <Badge
                             key={i}
                             variant="secondary"

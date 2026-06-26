@@ -14,14 +14,7 @@ import {
   Trophy, Users, CalendarDays, ListOrdered, Share2, ExternalLink,
   Check, X, LogIn, Crown, Medal, ImageIcon, Loader2, ArrowLeft,
 } from "lucide-react"
-import {
-  getPublicList,
-  getPublicOptions,
-  getMyVotes,
-  vote,
-  removeVote,
-  submitRankedVotes,
-} from "@/app/actions/lists"
+import { api } from "@/lib/api-client"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
@@ -89,19 +82,19 @@ export default function ShareContent() {
 
   const { data: list } = useQuery({
     queryKey: queryKeys.publicList(listId),
-    queryFn: () => getPublicList(listId),
+    queryFn: () => api.getPublicList(listId),
     enabled: !!listId,
   })
 
   const { data: options = [] } = useQuery({
     queryKey: queryKeys.publicOptions(listId),
-    queryFn: () => getPublicOptions(listId),
+    queryFn: () => api.getPublicOptions(listId),
     enabled: !!listId,
   })
 
   const { data: myVotes = [] } = useQuery({
     queryKey: queryKeys.myVotes(listId),
-    queryFn: () => getMyVotes(listId),
+    queryFn: () => api.getMyVotes(listId),
     enabled: !!listId && !!session?.user?.id,
   })
 
@@ -169,7 +162,7 @@ export default function ShareContent() {
 
   const voteMutation = useMutation({
     mutationFn: async (optionId: string) => {
-      await vote(optionId)
+      await api.vote(optionId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.publicOptions(listId) })
@@ -182,7 +175,7 @@ export default function ShareContent() {
 
   const removeVoteMutation = useMutation({
     mutationFn: async (optionId: string) => {
-      await removeVote(optionId)
+      await api.removeVote(optionId)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.publicOptions(listId) })
@@ -195,7 +188,7 @@ export default function ShareContent() {
 
   const submitRankedMutation = useMutation({
     mutationFn: async (rankingsList: Array<{ optionId: string; rank: number }>) => {
-      await submitRankedVotes(listId, rankingsList)
+      await api.submitRankedVotes(listId, rankingsList)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.publicOptions(listId) })

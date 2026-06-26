@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Scale, Eye, EyeOff, Mail, Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { PageTransition } from "@/components/PageTransition"
-import { registerUser } from "@/app/actions/auth"
+import { api } from "@/lib/api-client"
 import { registerSchema, type RegisterData } from "@/lib/schemas"
 
 export function RegisterForm() {
@@ -25,7 +25,7 @@ export function RegisterForm() {
   })
 
   async function onSubmit(data: RegisterData) {
-    const result = await registerUser(data.name, data.email, data.password)
+    const result = await api.registerUser(data.name, data.email, data.password)
     if (result.error) {
       toast.error(result.error)
       return
