@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Mail, Check, X, Vote, CalendarDays, User, ArrowRight } from "lucide-react"
@@ -35,6 +36,7 @@ type InviteData = {
 
 export default function InvitesPageContent() {
   const { data: session } = useSession()
+  const router = useRouter()
   const queryClient = useQueryClient()
 
   const { data: invites = [], isPending } = useQuery({
@@ -44,11 +46,12 @@ export default function InvitesPageContent() {
   })
 
   const acceptMutation = useMutation({
-    mutationFn: (inviteId: string) => api.acceptInvite(inviteId),
-    onSuccess: () => {
+    mutationFn: ({ inviteId }: { inviteId: string; listId: string }) => api.acceptInvite(inviteId),
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.myInvites })
       queryClient.invalidateQueries({ queryKey: queryKeys.lists })
       toast.success("Convite aceito!")
+      router.push(`/lists/${variables.listId}`)
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao aceitar convite"),
   })
@@ -137,7 +140,7 @@ export default function InvitesPageContent() {
                       <Button
                         size="sm"
                         className="gap-1.5 flex-1"
-                        onClick={() => acceptMutation.mutate(invite.id)}
+                        onClick={() => acceptMutation.mutate({ inviteId: invite.id, listId: invite.list.id })}
                         disabled={acceptMutation.isPending}
                       >
                         <Check className="h-3.5 w-3.5" />

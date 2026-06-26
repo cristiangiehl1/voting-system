@@ -66,6 +66,7 @@ export const api = {
     name: string; description?: string; expiresAt?: string;
     revealVotes?: boolean; allowMultipleVotes?: boolean; rankedVoting?: boolean;
     maxRank?: number; allowParticipantsToAddOptions?: boolean; isPublic?: boolean;
+    imageId?: string; imageUrl?: string;
   }) => {
     const res = await request<{ id: string }>("/api/lists", { method: "POST", body: JSON.stringify(data) })
     return res.id

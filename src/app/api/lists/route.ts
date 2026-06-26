@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json()
-  const { name, description, expiresAt, revealVotes, allowMultipleVotes, rankedVoting, maxRank, allowParticipantsToAddOptions, isPublic } = body
+  const { name, description, expiresAt, revealVotes, allowMultipleVotes, rankedVoting, maxRank, allowParticipantsToAddOptions, isPublic, imageId, imageUrl } = body
 
   if (!name) {
     return NextResponse.json({ error: "Nome é obrigatório" }, { status: 400 })
@@ -42,6 +42,8 @@ export async function POST(req: Request) {
     maxRank,
     allowParticipantsToAddOptions,
     isPublic,
+    imageId,
+    imageUrl,
   })
 
   return NextResponse.json({ id: list.id })
