@@ -22,10 +22,16 @@ export function ForgotPasswordForm() {
   })
 
   async function onSubmit(_data: ForgotPasswordData) {
-    await api.forgotPassword(_data.email)
-    toast.success("Se o email existir, você receberá um link de recuperação.")
-    router.push("/")
-    router.refresh()
+    try {
+      const res = await api.forgotPassword(_data.email)
+      console.log("[forgot-password] Resposta da API:", JSON.stringify(res))
+      toast.success("Se o email existir, você receberá um link de recuperação.")
+      router.push("/")
+      router.refresh()
+    } catch (error: any) {
+      console.error("[forgot-password] Erro na requisição:", error)
+      toast.error(error?.message || "Erro ao enviar solicitação. Tente novamente.")
+    }
   }
 
   return (

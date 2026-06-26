@@ -1,6 +1,40 @@
 const API_KEY = process.env.EMAIL_SERVICE_API_KEY || "POWER_RANGER_LEPROSO"
 const EMAIL_URL = process.env.EMAIL_SERVICE_BASE_URL || "http://localhost:3001/api/emails/send"
 
+async function sendEmail(to: string, subject: string, html: string) {
+  console.log(`[email] Tentando enviar email para: ${to}`)
+  console.log(`[email] Assunto: ${subject}`)
+  console.log(`[email] EMAIL_URL: ${EMAIL_URL}`)
+  console.log(`[email] API_KEY definida: ${!!API_KEY}`)
+  console.log(`[email] NEXT_PUBLIC_APP_URL: ${process.env.NEXT_PUBLIC_APP_URL || "NÃO DEFINIDO"}`)
+
+  try {
+    const res = await fetch(EMAIL_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${API_KEY}`,
+      },
+      body: JSON.stringify({ to, subject, html }),
+    })
+
+    console.log(`[email] Status da resposta: ${res.status} ${res.statusText}`)
+
+    if (!res.ok) {
+      const err = await res.text()
+      console.error(`[email] Erro na resposta (${res.status}):`, err)
+      throw new Error(`Erro ao enviar email (${res.status}): ${err}`)
+    }
+
+    const data = await res.json()
+    console.log(`[email] Email enviado com sucesso! Resposta:`, JSON.stringify(data))
+    return data
+  } catch (error: any) {
+    console.error(`[email] Exceção ao enviar email:`, error?.message || error)
+    throw error
+  }
+}
+
 export async function sendVerificationEmail(to: string, name: string, token: string) {
   const origin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   const link = `${origin}/api/auth/verify?token=${token}`
@@ -78,25 +112,7 @@ export async function sendVerificationEmail(to: string, name: string, token: str
 </body>
 </html>`
 
-  const res = await fetch(EMAIL_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      to,
-      subject: "Confirme seu email - Eleito",
-      html,
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Erro ao enviar email: ${err}`)
-  }
-
-  return res.json()
+  return sendEmail(to, "Confirme seu email - Eleito", html)
 }
 
 export async function sendResetPasswordEmail(to: string, name: string, token: string) {
@@ -176,23 +192,5 @@ export async function sendResetPasswordEmail(to: string, name: string, token: st
 </body>
 </html>`
 
-  const res = await fetch(EMAIL_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${API_KEY}`,
-    },
-    body: JSON.stringify({
-      to,
-      subject: "Redefina sua senha - Eleito",
-      html,
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Erro ao enviar email: ${err}`)
-  }
-
-  return res.json()
+  return sendEmail(to, "Redefina sua senha - Eleito", html)
 }

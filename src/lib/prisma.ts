@@ -8,8 +8,18 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient() {
-  const connectionString = process.env.DATABASE_URL!
+  const connectionString = process.env.DATABASE_URL
+
+  console.log("[prisma] DATABASE_URL definida:", !!connectionString)
+
+  if (!connectionString) {
+    const error = new Error("DATABASE_URL não está definida nas environment variables!")
+    console.error("[prisma] ERRO CRÍTICO:", error.message)
+    throw error
+  }
+
   const isNeon = connectionString.includes("neon.tech")
+  console.log("[prisma] Detectado Neon:", isNeon)
 
   if (isNeon) {
     const adapter = new PrismaNeon({ connectionString })
