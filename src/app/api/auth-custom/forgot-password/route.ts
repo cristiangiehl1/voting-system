@@ -13,12 +13,13 @@ export async function POST(req: Request) {
   }
 
   const user = await findUserByEmail(email)
+
   if (!user || !user.emailVerified) {
     return NextResponse.json({ success: true })
   }
 
   const token = jwt.sign(
-    { userId: user.id, email: user.email, purpose: "reset-password" },
+    { userId: user.id, email: user.email },
     JWT_SECRET,
     { expiresIn: "1h" }
   )
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
   await updateUserResetToken(user.id, token)
 
   try {
-    await sendResetPasswordEmail(email, user.name || "Usuário", token)
+    await sendResetPasswordEmail(email, user.name || "usuário", token)
   } catch {
     return NextResponse.json({ error: "Erro ao enviar email de recuperação" }, { status: 500 })
   }

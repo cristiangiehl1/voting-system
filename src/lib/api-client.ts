@@ -142,12 +142,12 @@ export const api = {
     }),
 
   forgotPassword: (email: string) =>
-    request<{ error?: string; success?: boolean }>("/api/auth/forgot-password", {
+    request<{ error?: string; success?: boolean }>("/api/auth-custom/forgot-password", {
       method: "POST", body: JSON.stringify({ email }),
     }),
 
   resetPassword: (token: string, password: string) =>
-    request<{ error?: string; success?: boolean }>("/api/auth/reset-password", {
+    request<{ error?: string; success?: boolean }>("/api/auth-custom/reset-password", {
       method: "POST", body: JSON.stringify({ token, password }),
     }),
 

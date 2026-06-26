@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +14,6 @@ import { Scale, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { PageTransition } from "@/components/PageTransition"
 import { loginSchema, type LoginData } from "@/lib/schemas"
-import Link from "next/link"
 
 export function LoginForm() {
   const router = useRouter()
@@ -66,7 +66,12 @@ export function LoginForm() {
                 {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Senha</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="password">Senha</Label>
+                  <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    Esqueceu a senha?
+                  </Link>
+                </div>
                 <div className="relative">
                   <Input
                     id="password"
@@ -90,19 +95,11 @@ export function LoginForm() {
                 {isSubmitting ? "Entrando..." : "Entrar"}
               </Button>
             </form>
-            <div className="mt-4 flex items-center justify-between text-sm">
-              <a
-                href="/forgot"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Esqueceu a senha?
-              </a>
-              <span>
-                Não tem conta?{" "}
-                <Link href="/register" className="font-medium text-primary hover:underline">
-                  Registre-se
-                </Link>
-              </span>
+            <div className="mt-4 text-center text-sm text-muted-foreground">
+              Não tem conta?{" "}
+              <Link href="/register" className="font-medium text-primary hover:underline">
+                Registre-se
+              </Link>
             </div>
           </CardContent>
         </Card>

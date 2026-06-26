@@ -1,6 +1,5 @@
-
 import { ForgotPasswordForm } from "./ForgotPasswordForm"
 
-export default async function ForgotPasswordPage() {
+export default function ForgotPasswordPage() {
   return <ForgotPasswordForm />
 }

@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import {
   findUserById,
@@ -10,10 +9,9 @@ import { ProfileContent } from "./ProfileContent"
 
 export default async function ProfilePage() {
   const session = await auth()
-  if (!session?.user?.id) redirect("/login")
 
   const [dbUser, createdListsCount, participatingCount, votesCount] = await Promise.all([
-    findUserById(session.user.id),
+    findUserById(session!.user!.id),
     countUserCreatedLists(session.user.id),
     countUserParticipations(session.user.id),
     countUserVotes(session.user.id),

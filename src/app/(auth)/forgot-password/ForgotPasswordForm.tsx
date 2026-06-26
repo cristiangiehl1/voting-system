@@ -8,21 +8,30 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Scale, ArrowLeft, Mail, CheckCircle2 } from "lucide-react"
+import { Scale, Mail, ArrowLeft } from "lucide-react"
+import { toast } from "sonner"
 import { PageTransition } from "@/components/PageTransition"
 import { forgotPasswordSchema, type ForgotPasswordData } from "@/lib/schemas"
 import { api } from "@/lib/api-client"
 
 export function ForgotPasswordForm() {
   const [sent, setSent] = useState(false)
+  const [sentEmail, setSentEmail] = useState("")
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ForgotPasswordData>({
     resolver: zodResolver(forgotPasswordSchema),
   })
 
   async function onSubmit(data: ForgotPasswordData) {
-    await api.forgotPassword(data.email)
+    const result = await api.forgotPassword(data.email)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    setSentEmail(data.email)
     setSent(true)
+    toast.success("Email enviado! Verifique sua caixa de entrada.")
   }
 
   if (sent) {
@@ -31,22 +40,23 @@ export function ForgotPasswordForm() {
         <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
           <Card className="w-full max-w-md border-border/50 bg-card/80 backdrop-blur">
             <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
-                <CheckCircle2 className="h-8 w-8" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent ring-1 ring-primary/30">
+                <Mail className="h-8 w-8 text-white" />
               </div>
-              <CardTitle className="text-2xl font-bold">Email enviado</CardTitle>
+              <CardTitle className="text-2xl font-bold">Email enviado!</CardTitle>
               <CardDescription>
-                Se existir uma conta com este email, você receberá um link para redefinir sua senha.
+                Enviamos um link de redefinição para <strong>{sentEmail}</strong>
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="text-center">
-                <Link
-                  href="/login"
-                  className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Voltar para o login
+            <CardContent className="text-center">
+              <p className="text-sm text-muted-foreground">
+                Clique no link enviado para criar uma nova senha. O link expira em 1 hora.
+              </p>
+              <div className="mt-6 flex flex-col gap-3">
+                <Link href="/login">
+                  <Button variant="outline" className="w-full">
+                    Voltar para o login
+                  </Button>
                 </Link>
               </div>
             </CardContent>
