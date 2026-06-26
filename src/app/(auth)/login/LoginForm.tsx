@@ -86,24 +86,20 @@ export function LoginForm() {
                 </div>
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => router.push("/forgot-password")}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Esqueceu a senha?
-                </button>
-              </div>
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? "Entrando..." : "Entrar"}
               </Button>
             </form>
-            <div className="mt-4 text-center text-sm text-muted-foreground">
-              Não tem conta?{" "}
-              <Link href="/register" className="font-medium text-primary hover:underline">
-                Registre-se
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <Link href="/forgot-password" className="text-muted-foreground hover:text-foreground transition-colors">
+                Esqueceu a senha?
               </Link>
+              <span>
+                Não tem conta?{" "}
+                <Link href="/register" className="font-medium text-primary hover:underline">
+                  Registre-se
+                </Link>
+              </span>
             </div>
           </CardContent>
         </Card>
