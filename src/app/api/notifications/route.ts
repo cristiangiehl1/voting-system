@@ -3,9 +3,13 @@ import { auth } from "@/lib/auth"
 import { findNotificationsByUserId } from "@/lib/repositories/notification.repository"
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user?.id) return NextResponse.json([])
+  try {
+    const session = await auth()
+    if (!session?.user?.id) return NextResponse.json([])
 
-  const notifications = await findNotificationsByUserId(session.user.id)
-  return NextResponse.json(notifications)
+    const notifications = await findNotificationsByUserId(session.user.id)
+    return NextResponse.json(notifications)
+  } catch {
+    return NextResponse.json([])
+  }
 }
