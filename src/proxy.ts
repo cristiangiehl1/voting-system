@@ -3,7 +3,13 @@ import { NextResponse } from "next/server"
 
 export default withAuth(
   function proxy(req) {
-    const pathname = req.nextUrl.pathname
+    const { pathname, searchParams } = req.nextUrl
+    const isRSC = searchParams.has("_rsc")
+
+    if (isRSC) {
+      return NextResponse.next()
+    }
+
     const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password")
     const isLoggedIn = !!req.nextauth.token
 
@@ -16,7 +22,13 @@ export default withAuth(
   {
     callbacks: {
       authorized({ req, token }) {
-        const pathname = req.nextUrl.pathname
+        const { pathname, searchParams } = req.nextUrl
+        const isRSC = searchParams.has("_rsc")
+
+        if (isRSC) {
+          return true
+        }
+
         const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password")
         const isPublicRoute = pathname === "/" || pathname.startsWith("/share")
 
