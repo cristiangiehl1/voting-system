@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation"
-import { api } from "@/lib/api-client"
+import { serverApi } from "@/lib/server-api-client"
 import { ProfileContent } from "./ProfileContent"
 
 export default async function ProfilePage() {
-  const data = await api.getProfile()
+  const data = await serverApi.getProfile()
 
   if (!data) redirect("/login")
 
