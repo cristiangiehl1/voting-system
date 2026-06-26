@@ -3,29 +3,15 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import { toast } from "sonner"
 import {
-  Plus,
   Users,
   ArrowLeft,
   Trophy,
@@ -33,47 +19,34 @@ import {
   Trash2,
   Check,
   X,
-  Settings,
-  Eye,
-  EyeOff,
   ListOrdered,
   Pencil,
   ExternalLink,
   ImageIcon,
   Share2,
   ArrowRight,
-  UserCheck,
-  Mail,
 } from "lucide-react"
 import { api } from "@/lib/api-client"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
 import { queryKeys } from "@/lib/query-keys"
-import {
-  createOptionSchema,
-  updateListSchema,
-  type CreateOptionData,
-  type UpdateListData,
-} from "@/lib/schemas"
 import { useList } from "@/hooks/queries/useList"
 import { useOptions } from "@/hooks/queries/useOptions"
 import { useParticipants } from "@/hooks/queries/useParticipants"
 import { useMyVotes } from "@/hooks/queries/useMyVotes"
 import { useInvites } from "@/hooks/queries/useInvites"
-import { useFriends } from "@/hooks/queries/useFriends"
-import { useCreateOption } from "@/hooks/mutations/useCreateOption"
-import { useAddParticipant } from "@/hooks/mutations/useAddParticipant"
 import { useRemoveParticipant } from "@/hooks/mutations/useRemoveParticipant"
 import { useVote } from "@/hooks/mutations/useVote"
 import { useRemoveVote } from "@/hooks/mutations/useRemoveVote"
-import { useUpdateList } from "@/hooks/mutations/useUpdateList"
 import { useUpdateOptionImage } from "@/hooks/mutations/useUpdateOptionImage"
 import { useUpdateOption } from "@/hooks/mutations/useUpdateOption"
 import { useRemoveOption } from "@/hooks/mutations/useRemoveOption"
-import { useDeleteList } from "@/hooks/mutations/useDeleteList"
 import { useSubmitRankedVotes } from "@/hooks/mutations/useSubmitRankedVotes"
 import { useCancelInvite } from "@/hooks/mutations/useCancelInvite"
 import { ListSkeleton } from "@/components/skeletons/ListSkeleton"
+import { SettingsDialog } from "./_SettingsDialog"
+import { OptionDialog } from "./_OptionDialog"
+import { InviteDialog } from "./_InviteDialog"
 
 const KNOWN_SITES: Record<string, string> = {
   "steampowered.com": "Steam",
@@ -133,14 +106,7 @@ export default function ListPageContent() {
   const params = useParams()
   const router = useRouter()
   const { data: session } = useSession()
-  const queryClient = useQueryClient()
   const listId = params.id as string
-
-  const [optionOpen, setOptionOpen] = useState(false)
-  const [participantOpen, setParticipantOpen] = useState(false)
-  const [selectedEmails, setSelectedEmails] = useState<string[]>([])
-  const [manualEmail, setManualEmail] = useState("")
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const { data: list } = useList(listId)
   const { data: optionsData, isPending: optionsLoading, fetchNextPage: fetchNextOptions, hasNextPage: hasNextOptions, isFetchingNextPage: fetchingNextOptions } = useOptions(listId)
@@ -167,86 +133,10 @@ export default function ListPageContent() {
   const canManageOptions = isOwner || (isParticipant && list?.allowParticipantsToAddOptions)
 
   const { data: invites = [] } = useInvites(listId, !!listId && isOwner)
-  const { data: friendships } = useFriends(!!session?.user?.id && participantOpen)
-
-  const friends = [
-    ...(friendships?.sent ?? []).filter((f) => f.status === "ACCEPTED").map((f) => f.addressee),
-    ...(friendships?.received ?? []).filter((f) => f.status === "ACCEPTED").map((f) => f.requester),
-  ]
 
   const cancelInviteMutation = useCancelInvite(listId,
     () => toast.success("Convite cancelado"),
     (error) => toast.error(error instanceof Error ? error.message : "Erro ao cancelar convite"),
-  )
-
-  const settingsForm = useForm<UpdateListData>({
-    resolver: zodResolver(updateListSchema),
-    defaultValues: {
-      name: list?.name ?? "",
-      description: list?.description ?? "",
-      revealVotes: list?.revealVotes ?? false,
-      allowMultipleVotes: list?.allowMultipleVotes ?? false,
-      rankedVoting: list?.rankedVoting ?? false,
-      maxRank: list?.maxRank ?? 5,
-      allowParticipantsToAddOptions: list?.allowParticipantsToAddOptions ?? false,
-      isPublic: list?.isPublic ?? false,
-    },
-  })
-  useEffect(() => {
-    if (settingsOpen) {
-      settingsForm.reset({
-        name: list?.name ?? "",
-        description: list?.description ?? "",
-        revealVotes: list?.revealVotes ?? false,
-        allowMultipleVotes: list?.allowMultipleVotes ?? false,
-        rankedVoting: list?.rankedVoting ?? false,
-        maxRank: list?.maxRank ?? 5,
-        allowParticipantsToAddOptions: list?.allowParticipantsToAddOptions ?? false,
-        isPublic: list?.isPublic ?? false,
-      })
-    }
-  }, [settingsOpen])
-
-  const watchRankedVotingSettings = settingsForm.watch("rankedVoting")
-  const watchMultipleSettings = settingsForm.watch("allowMultipleVotes")
-  useEffect(() => {
-    if (watchRankedVotingSettings && !watchMultipleSettings) {
-      settingsForm.setValue("allowMultipleVotes", true)
-    }
-  }, [watchRankedVotingSettings, watchMultipleSettings, settingsForm])
-
-  const optionForm = useForm<CreateOptionData>({
-    resolver: zodResolver(createOptionSchema),
-    defaultValues: { listId, name: "", description: "", referenceUrl: "" },
-  })
-
-  const [optionImageUploading, setOptionImageUploading] = useState(false)
-  const optionImage = optionForm.watch("image")
-
-  const addOptionMutation = useCreateOption(listId,
-    () => {
-      optionForm.reset({ listId, name: "", description: "", referenceUrl: "" })
-      setOptionOpen(false)
-      toast.success("Opção adicionada")
-    },
-    (error) => toast.error(error instanceof Error ? error.message : "Erro ao adicionar opção"),
-  )
-
-  const addParticipantMutation = useAddParticipant(listId,
-    (result) => {
-      setSelectedEmails([])
-      setManualEmail("")
-      const parts: string[] = []
-      if (result.invited > 0) {
-        parts.push(`${result.invited} convite${result.invited > 1 ? "s" : ""} enviado${result.invited > 1 ? "s" : ""}`)
-      }
-      if (result.errors.length > 0) {
-        parts.push(`${result.errors.length} erro${result.errors.length > 1 ? "s" : ""}`)
-      }
-      toast.success(parts.join(", "))
-      setParticipantOpen(false)
-    },
-    (error) => toast.error(error instanceof Error ? error.message : "Erro ao convidar"),
   )
 
   const removeParticipantMutation = useRemoveParticipant(listId,
@@ -262,14 +152,6 @@ export default function ListPageContent() {
   const removeVoteMutation = useRemoveVote(listId, false,
     () => toast.success("Voto removido"),
     (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover voto"),
-  )
-
-  const updateListMutation = useUpdateList(listId,
-    () => {
-      setSettingsOpen(false)
-      toast.success("Configuração atualizada")
-    },
-    (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar configuração"),
   )
 
   const updateOptionImageMutation = useUpdateOptionImage(listId,
@@ -311,9 +193,9 @@ export default function ListPageContent() {
 
   const [editOptionId, setEditOptionId] = useState<string | null>(null)
   const editOption = options.find((o) => o.id === editOptionId)
-  const editOptionForm = useForm({
-    defaultValues: { name: "", description: "", referenceUrl: "" },
-  })
+  const [editOptionName, setEditOptionName] = useState("")
+  const [editOptionDesc, setEditOptionDesc] = useState("")
+  const [editOptionUrl, setEditOptionUrl] = useState("")
 
   const updateOptionMutation = useUpdateOption(listId,
     () => {
@@ -328,24 +210,10 @@ export default function ListPageContent() {
     (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover opção"),
   )
 
-  const deleteListMutation = useDeleteList(
-    () => {
-      setSettingsOpen(false)
-      toast.success("Lista deletada")
-      router.push("/")
-    },
-    (error) => toast.error(error instanceof Error ? error.message : "Erro ao deletar lista"),
-  )
-
   const submitRankedMutation = useSubmitRankedVotes(listId, false,
     () => toast.success("Ranking registrado"),
     (error) => toast.error(error instanceof Error ? error.message : "Erro ao registrar ranking"),
   )
-
-  const [listImageUploading, setListImageUploading] = useState(false)
-  const listImage = settingsForm.watch("image")
-
-  const [confirmDelete, setConfirmDelete] = useState(false)
 
   async function copyShareLink() {
     const url = `${window.location.origin}/share/${listId}`
@@ -356,6 +224,7 @@ export default function ListPageContent() {
       toast.error("Erro ao copiar link")
     }
   }
+
   const [rankings, setRankings] = useState<Record<string, number>>({})
 
   useEffect(() => {
@@ -443,7 +312,7 @@ export default function ListPageContent() {
           {list.imageUrl ? (
             <>
               <div
-                className="absolute inset-0 -top-32 -bottom-32 scale-110 opacity-20 blur-3xl"
+                className="absolute inset-0 -top-32 -bottom-32 scale-110 opacity-20 blur-3xl pointer-events-none"
                 style={{
                   maskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
                   WebkitMaskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
@@ -523,508 +392,12 @@ export default function ListPageContent() {
               </Button>
             </Link>
 
-            {isOwner && (
-              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-                <DialogTrigger
-                  className="inline-flex"
-                  render={
-                    <Button variant="outline">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Configurações
-                    </Button>
-                  }
-                />
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Configurações da lista</DialogTitle>
-                  </DialogHeader>
-                  <form
-                    onSubmit={settingsForm.handleSubmit(async (data) => {
-                      let imageId: string | undefined
-                      let imageUrl: string | undefined
-
-                      const imageFile = data.image
-                      if (imageFile) {
-                        setListImageUploading(true)
-                        try {
-                          const fd = new FormData()
-                          fd.append("file", imageFile)
-                          fd.append("type", "list")
-                          if (list.imageId) {
-                            fd.append("publicId", list.imageId)
-                          }
-
-                          const res = await fetch("/api/upload", { method: "POST", body: fd })
-                          const result = await res.json()
-                          if (!res.ok) throw new Error(result.error || "Erro ao fazer upload")
-                          imageId = result.publicId
-                          imageUrl = result.secureUrl
-                        } catch (error) {
-                          toast.error(error instanceof Error ? error.message : "Erro ao fazer upload")
-                          setListImageUploading(false)
-                          return
-                        }
-                        setListImageUploading(false)
-                      }
-
-                      const { image: _, ...dataWithoutImage } = data
-                      updateListMutation.mutate({ ...dataWithoutImage, imageId, imageUrl })
-                    })}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="listName">Nome</Label>
-                      <Input id="listName" {...settingsForm.register("name")} disabled={updateListMutation.isPending} />
-                      {settingsForm.formState.errors.name && (
-                        <p className="text-xs text-destructive">{settingsForm.formState.errors.name.message}</p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="listDescription">Descrição (opcional)</Label>
-                      <Textarea id="listDescription" {...settingsForm.register("description")} disabled={updateListMutation.isPending} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="listImage">Imagem de capa (opcional)</Label>
-                      <Input
-                        id="listImage"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null
-                          settingsForm.setValue("image", file ?? undefined)
-                        }}
-                        disabled={updateListMutation.isPending || listImageUploading}
-                      />
-                      {listImage && (
-                        <div className="mt-2 overflow-hidden rounded-lg border border-border/50">
-                          <img
-                            src={URL.createObjectURL(listImage)}
-                            alt="Preview"
-                            className="h-40 w-full object-cover"
-                          />
-                        </div>
-                      )}
-                      {!listImage && list.imageUrl && (
-                        <div className="mt-2 overflow-hidden rounded-lg border border-border/50">
-                          <img
-                            src={list.imageUrl}
-                            alt="Capa atual"
-                            className="h-40 w-full object-cover"
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
-                      <input
-                        id="isPublic"
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
-                        {...settingsForm.register("isPublic")}
-                        disabled={updateListMutation.isPending}
-                      />
-                      <div className="grid gap-1">
-                        <Label htmlFor="isPublic" className="cursor-pointer font-medium">
-                          Lista pública
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Qualquer usuário pode ver e votar sem precisar de convite.
-                        </p>
-                      </div>
-                    </div>
-                    <Separator />
-                    <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
-                      <input
-                        id="revealVotes"
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
-                        {...settingsForm.register("revealVotes")}
-                        disabled={updateListMutation.isPending}
-                      />
-                      <div className="grid gap-1">
-                        <Label htmlFor="revealVotes" className="cursor-pointer font-medium">
-                          Divulgar votos
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Quando ativo, qualquer participante pode ver quem votou em cada opção.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
-                      <input
-                        id="allowMultipleVotes"
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
-                        {...settingsForm.register("allowMultipleVotes")}
-                        disabled={updateListMutation.isPending || settingsForm.watch("rankedVoting")}
-                      />
-                      <div className="grid gap-1">
-                        <Label htmlFor="allowMultipleVotes" className={`cursor-pointer font-medium ${settingsForm.watch("rankedVoting") ? "text-muted-foreground" : ""}`}>
-                          Permitir votos múltiplos
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          {settingsForm.watch("rankedVoting")
-                            ? "Sempre ativo para votações por ranking."
-                            : "Quando ativo, cada participante pode votar em várias opções. Se desativado, apenas uma opção por participante."}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
-                      <input
-                        id="rankedVoting"
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
-                        {...settingsForm.register("rankedVoting")}
-                        disabled={updateListMutation.isPending}
-                      />
-                      <div className="grid gap-1">
-                        <Label htmlFor="rankedVoting" className="cursor-pointer font-medium">
-                          Votação por ranking
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Participantes rankeiam suas opções favoritas em vez de apenas votar.
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3 rounded-lg border border-border/50 p-3">
-                      <input
-                        id="allowParticipantsToAddOptions"
-                        type="checkbox"
-                        className="mt-0.5 h-4 w-4 cursor-pointer rounded border-border bg-card text-primary accent-primary"
-                        {...settingsForm.register("allowParticipantsToAddOptions")}
-                        disabled={updateListMutation.isPending}
-                      />
-                      <div className="grid gap-1">
-                        <Label htmlFor="allowParticipantsToAddOptions" className="cursor-pointer font-medium">
-                          Participantes podem adicionar opções
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Quando ativo, qualquer participante pode adicionar ou remover itens da lista. Se desativado, apenas o criador pode gerenciar as opções.
-                        </p>
-                      </div>
-                    </div>
-                    {settingsForm.watch("rankedVoting") && (
-                      <div className="space-y-2">
-                        <Label htmlFor="maxRank">Máximo de rankings por participante</Label>
-                        <Input
-                          id="maxRank"
-                          type="number"
-                          min={1}
-                          max={10}
-                          {...settingsForm.register("maxRank", { valueAsNumber: true })}
-                          disabled={updateListMutation.isPending}
-                        />
-                      </div>
-                    )}
-                    <Separator />
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {settingsForm.watch("revealVotes") ? (
-                        <>
-                          <Eye className="h-4 w-4" />
-                          Votos estão sendo divulgados
-                        </>
-                      ) : (
-                        <>
-                          <EyeOff className="h-4 w-4" />
-                          Votos estão ocultos
-                        </>
-                      )}
-                    </div>
-                    <Button type="submit" disabled={updateListMutation.isPending} className="w-full">
-                      {updateListMutation.isPending ? "Salvando..." : "Salvar"}
-                    </Button>
-                  </form>
-                  <Separator />
-                  {confirmDelete ? (
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-destructive">
-                        Tem certeza? Esta ação não pode ser desfeita.
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => setConfirmDelete(false)}
-                          disabled={deleteListMutation.isPending}
-                        >
-                          Cancelar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          className="flex-1"
-                          onClick={() => deleteListMutation.mutate(listId)}
-                          disabled={deleteListMutation.isPending}
-                        >
-                          {deleteListMutation.isPending ? "Deletando..." : "Deletar"}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="ghost"
-                      className="w-full text-destructive"
-                      onClick={() => setConfirmDelete(true)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Deletar lista
-                    </Button>
-                  )}
-                </DialogContent>
-              </Dialog>
-            )}
+            {isOwner && <SettingsDialog listId={listId} list={list} />}
 
             {(isOwner || (isParticipant && list?.allowParticipantsToAddOptions)) && !expired && (
               <>
-                <Dialog open={optionOpen} onOpenChange={setOptionOpen}>
-                  <DialogTrigger
-                    className="inline-flex"
-                    render={
-                      <Button variant="outline">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Opção
-                      </Button>
-                    }
-                  />
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Adicionar opção</DialogTitle>
-                    </DialogHeader>
-                    <form
-                      onSubmit={optionForm.handleSubmit(async (data) => {
-                        let imageId: string | undefined
-                        let imageUrl: string | undefined
-
-                        const imageFile = data.image
-                        if (imageFile) {
-                          setOptionImageUploading(true)
-                          try {
-                            const fd = new FormData()
-                            fd.append("file", imageFile)
-                            fd.append("type", "option")
-
-                            const res = await fetch("/api/upload", { method: "POST", body: fd })
-                            const result = await res.json()
-                            if (!res.ok) throw new Error(result.error || "Erro ao fazer upload")
-                            imageId = result.publicId
-                            imageUrl = result.secureUrl
-                          } catch (error) {
-                            toast.error(error instanceof Error ? error.message : "Erro ao fazer upload")
-                            setOptionImageUploading(false)
-                            return
-                          }
-                          setOptionImageUploading(false)
-                        }
-
-                        addOptionMutation.mutate({ ...data, referenceUrl: data.referenceUrl || undefined, imageId, imageUrl })
-                      })}
-                      className="space-y-4"
-                    >
-                      <input type="hidden" {...optionForm.register("listId")} />
-                      <div className="space-y-2">
-                        <Label htmlFor="optionName">Nome</Label>
-                        <Input
-                          id="optionName"
-                          placeholder="Ex: O Poderoso Chefão"
-                          {...optionForm.register("name")}
-                        />
-                        {optionForm.formState.errors.name && (
-                          <p className="text-xs text-destructive">{optionForm.formState.errors.name.message}</p>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="optionDescription">Descrição (opcional)</Label>
-                        <Textarea
-                          id="optionDescription"
-                          placeholder="Informações adicionais sobre a opção"
-                          {...optionForm.register("description")}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="optionImage">Imagem (opcional)</Label>
-                        <div className="flex items-center gap-3">
-                          <Input
-                            id="optionImage"
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] ?? null
-                              optionForm.setValue("image", file ?? undefined)
-                            }}
-                            disabled={optionImageUploading}
-                          />
-                        </div>
-                        {optionImage && (
-                          <div className="mt-2 overflow-hidden rounded-lg border border-border/50">
-                            <img
-                              src={URL.createObjectURL(optionImage)}
-                              alt="Preview"
-                              className="h-40 w-full object-cover"
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="optionReferenceUrl">Link de referência (opcional)</Label>
-                        <Input
-                          id="optionReferenceUrl"
-                          type="url"
-                          placeholder="https://www.imdb.com/title/tt0068646/"
-                          {...optionForm.register("referenceUrl")}
-                        />
-                        {(optionForm.watch("referenceUrl") ?? "") && (
-                          <p className="text-xs text-muted-foreground">
-                            {getReferenceLabel(optionForm.watch("referenceUrl") ?? "")}
-                          </p>
-                        )}
-                      </div>
-                      <Button type="submit" className="w-full" disabled={addOptionMutation.isPending || optionImageUploading}>
-                        {optionImageUploading ? "Enviando imagem..." : addOptionMutation.isPending ? "Adicionando..." : "Adicionar opção"}
-                      </Button>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-
-                <Dialog open={participantOpen} onOpenChange={(open) => {
-                  setParticipantOpen(open)
-                  if (!open) {
-                    setSelectedEmails([])
-                    setManualEmail("")
-                  }
-                }}>
-                  <DialogTrigger
-                    className="inline-flex"
-                    render={
-                      <Button>
-                        <Users className="mr-2 h-4 w-4" />
-                        Participante
-                      </Button>
-                    }
-                  />
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Convidar participantes</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Adicionar por email</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            className="min-w-0 flex-1"
-                            placeholder="email@convidado.com"
-                            value={manualEmail}
-                            onChange={(e) => setManualEmail(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && manualEmail.includes("@")) {
-                                e.preventDefault()
-                                if (!selectedEmails.includes(manualEmail)) {
-                                  setSelectedEmails((prev) => [...prev, manualEmail])
-                                }
-                                setManualEmail("")
-                              }
-                            }}
-                          />
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="shrink-0"
-                            onClick={() => {
-                              if (manualEmail.includes("@") && !selectedEmails.includes(manualEmail)) {
-                                setSelectedEmails((prev) => [...prev, manualEmail])
-                                setManualEmail("")
-                              }
-                            }}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {friends.length > 0 && (
-                        <div className="space-y-2">
-                          <Label className="flex items-center gap-1.5">
-                            <UserCheck className="h-3.5 w-3.5" />
-                            Amigos
-                          </Label>
-                          <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border p-1">
-                            {friends.map((friend) => {
-                              const isSelected = selectedEmails.includes(friend.email ?? "")
-                              return (
-                                <button
-                                  key={friend.id}
-                                  type="button"
-                                  onClick={() => {
-                                    if (!friend.email) return
-                                    setSelectedEmails((prev) =>
-                                      isSelected
-                                        ? prev.filter((e) => e !== friend.email)
-                                        : [...prev, friend.email!],
-                                    )
-                                  }}
-                                  className={`flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm transition-colors ${
-                                    isSelected
-                                      ? "bg-primary/10 text-primary"
-                                      : "hover:bg-secondary/50"
-                                  }`}
-                                >
-                                  <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium ${
-                                    isSelected
-                                      ? "bg-primary text-primary-foreground"
-                                      : "bg-secondary text-secondary-foreground"
-                                  }`}>
-                                    {(friend.name?.[0] ?? friend.email?.[0] ?? "?").toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate font-medium">{friend.name || "Usuário"}</p>
-                                    <p className="truncate text-xs text-muted-foreground">{friend.email}</p>
-                                  </div>
-                                  {isSelected && <Check className="h-4 w-4 shrink-0" />}
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedEmails.length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Selecionados ({selectedEmails.length})</Label>
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedEmails.map((email) => (
-                              <Badge
-                                key={email}
-                                variant="secondary"
-                                className="gap-1 pr-1"
-                              >
-                                {email}
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedEmails((prev) => prev.filter((e) => e !== email))}
-                                  className="ml-0.5 rounded-full p-0.5 hover:bg-secondary-foreground/10"
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <Button
-                        className="w-full gap-1.5"
-                        onClick={() => addParticipantMutation.mutate(selectedEmails)}
-                        disabled={addParticipantMutation.isPending || selectedEmails.length === 0}
-                      >
-                        {addParticipantMutation.isPending ? (
-                          "Convidando..."
-                        ) : (
-                          <>
-                            <Mail className="h-4 w-4" />
-                            Convidar {selectedEmails.length > 0 && `(${selectedEmails.length})`}
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <OptionDialog listId={listId} />
+                <InviteDialog listId={listId} />
               </>
             )}
           </div>
@@ -1131,7 +504,9 @@ export default function ListPageContent() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  editOptionForm.reset({ name: option.name, description: option.description ?? "", referenceUrl: option.referenceUrl ?? "" })
+                                  setEditOptionName(option.name)
+                                  setEditOptionDesc(option.description ?? "")
+                                  setEditOptionUrl(option.referenceUrl ?? "")
                                   setEditOptionId(option.id)
                                 }}
                                 className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
@@ -1144,74 +519,79 @@ export default function ListPageContent() {
                             {option.description || "Sem descrição"}
                           </CardDescription>
                           {option.createdBy && (
-                            <div className="mt-1 flex items-center gap-1">
-                              <Avatar size="sm">
-                                {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
-                                <AvatarFallback className="text-[8px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
-                              </Avatar>
-                              <span className="text-[10px] text-muted-foreground">{option.createdBy.name}</span>
+                            <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <Users className="h-2.5 w-2.5" />
+                              {option.createdBy.name || "Alguém"}
                             </div>
                           )}
                         </CardHeader>
                         <CardContent className="px-3 pb-3 pt-0">
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="text-[11px] font-medium text-muted-foreground">
-                              {option._count?.votes ?? 0} voto{(option._count?.votes ?? 0) !== 1 ? "s" : ""}
-                            </span>
-                            {!list.rankedVoting && (isParticipant || list?.isPublic) && !expired && (
-                              option._count?.isVotedByMe ? (
-                                <button
-                                  onClick={() => removeVoteMutation.mutate(option.id)}
-                                  disabled={removeVoteMutation.isPending}
-                                  className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                                >
-                                  {removeVoteMutation.isPending ? (
-                                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                                  ) : (
-                                    <X className="h-3 w-3" />
-                                  )}
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => voteMutation.mutate(option.id)}
-                                  disabled={voteMutation.isPending || (!list.allowMultipleVotes && myVotes.length > 0)}
-                                  className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                                >
-                                  {voteMutation.isPending ? (
-                                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                                  ) : (
-                                    <Check className="h-3 w-3" />
-                                  )}
-                                </button>
-                              )
-                            )}
-                            {list.rankedVoting && (isParticipant || list?.isPublic) && !expired && (
-                              <div className="flex items-center gap-0.5">
+                          {rank != null && (
+                            <div className="mb-2 flex items-center gap-1.5">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <div
+                                  key={star}
+                                  className={`h-1.5 flex-1 rounded-full ${
+                                    star <= rank ? "bg-primary" : "bg-border"
+                                  }`}
+                                />
+                              ))}
+                              <span className="ml-1 text-[10px] font-medium text-muted-foreground">
+                                {rank}º
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex gap-1">
+                            {list?.rankedVoting && !expired && (
+                              <select
+                                value={rank ?? ""}
+                                onChange={(e) => setRank(option.id, e.target.value ? Number(e.target.value) : null)}
+                                className="h-6 min-w-0 flex-1 rounded-md border border-input bg-transparent px-1 text-[10px] outline-none focus-visible:border-ring"
+                              >
+                                <option value="">--</option>
                                 {getRankOptions(option.id).map((r) => (
-                                  <button
-                                    key={r.value}
-                                    onClick={() => setRank(option.id, rank === r.value ? null : r.value)}
-                                    disabled={r.disabled && rank !== r.value}
-                                    className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-medium transition-all ${
-                                      rank === r.value
-                                        ? "bg-primary text-primary-foreground"
-                                        : r.disabled
-                                          ? "cursor-not-allowed bg-muted text-muted-foreground/30"
-                                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                    }`}
-                                  >
+                                  <option key={r.value} value={r.value} disabled={r.disabled}>
                                     {r.label}
-                                  </button>
+                                  </option>
                                 ))}
-                                {rank != null && (
-                                  <button
-                                    onClick={() => setRank(option.id, null)}
-                                    className="flex h-5 w-5 items-center justify-center rounded bg-destructive/10 text-[10px] font-medium text-destructive hover:bg-destructive/20"
+                              </select>
+                            )}
+                            {!list?.rankedVoting && !expired && (isParticipant || list?.isPublic) && (
+                              <>
+                                {myVotes.some((v) => v.optionId === option.id) ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 text-destructive hover:text-destructive"
+                                    onClick={() => removeVoteMutation.mutate(option.id)}
+                                    disabled={removeVoteMutation.isPending}
                                   >
-                                    <X className="h-2.5 w-2.5" />
-                                  </button>
+                                    <X className="mr-1 h-3 w-3" />
+                                    Remover voto
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => voteMutation.mutate(option.id)}
+                                    disabled={voteMutation.isPending || (!list.allowMultipleVotes && myVotes.length > 0)}
+                                  >
+                                    <Check className="mr-1 h-3 w-3" />
+                                    Votar
+                                  </Button>
                                 )}
-                              </div>
+                              </>
+                            )}
+                            {canManageOptions && !expired && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeOptionMutation.mutate(option.id)}
+                                disabled={removeOptionMutation.isPending}
+                                className="text-destructive px-2"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
                             )}
                           </div>
                         </CardContent>
@@ -1220,180 +600,134 @@ export default function ListPageContent() {
                   })}
                 </div>
 
-                {optionsLoading && (
-                  <div className="mt-4 flex justify-center">
-                    <span className="text-sm text-muted-foreground">Carregando...</span>
-                  </div>
-                )}
-                {hasNextOptions && !optionsLoading && (
-                  <div className="mt-8 flex justify-center">
+                {hasNextOptions && (
+                  <div className="mt-6 text-center">
                     <Button
                       variant="outline"
                       onClick={() => fetchNextOptions()}
                       disabled={fetchingNextOptions}
                     >
-                      {fetchingNextOptions ? "Carregando..." : "Carregar mais opções"}
+                      {fetchingNextOptions ? "Carregando..." : "Carregar mais"}
                     </Button>
                   </div>
                 )}
               </div>
             ) : (
               <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {options.map((option, index) => (
-                  <AnimatedCard
-                    key={option.id}
-                    className="pt-0"
-                    style={{ animationDelay: `${index * 0.06}s` }}
-                  >
-                    <div className="group relative overflow-hidden rounded-t-xl">
-                      {option.imageUrl ? (
-                        <img src={option.imageUrl} alt={option.name} className="aspect-square w-full object-cover" />
-                      ) : (
-                        <div className="flex aspect-square w-full items-center justify-center bg-muted">
-                          <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
-                        </div>
-                      )}
-                      {canManageOptions && !expired && (
-                        <button
-                          type="button"
-                          onClick={() => handleChangeOptionImage(option.id)}
-                          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 shadow transition-opacity hover:bg-background group-hover:opacity-100"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <CardHeader className="pb-2 px-3 pt-3">
-                      <div className="flex items-start justify-between gap-1">
-                        <CardTitle className="text-sm leading-tight">
-                          {option.name}
-                          {option.referenceUrl && (
-                            <a
-                              href={option.referenceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-1 inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
-                              title={option.referenceUrl}
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink className="h-2.5 w-2.5" />
-                              {getReferenceLabel(option.referenceUrl)}
-                            </a>
+                {options.map((option, index) => {
+                  const hasVoted = myVotes.some((v) => v.optionId === option.id)
+                  return (
+                    <AnimatedCard
+                      key={option.id}
+                      className={`pt-0 ${hasVoted ? "border-primary/50 bg-primary/5" : ""}`}
+                      style={{ animationDelay: `${index * 0.06}s` }}
+                    >
+                        <div className="group relative overflow-hidden rounded-t-xl">
+                          {option.imageUrl ? (
+                            <img src={option.imageUrl} alt={option.name} className="aspect-square w-full object-cover" />
+                          ) : (
+                            <div className="flex aspect-square w-full items-center justify-center bg-muted">
+                              <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
+                            </div>
                           )}
-                        </CardTitle>
-                        {canManageOptions && !expired && (
-                          <div className="flex gap-1">
+                          {canManageOptions && !expired && (
+                            <button
+                              type="button"
+                              onClick={() => handleChangeOptionImage(option.id)}
+                              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 shadow transition-opacity hover:bg-background group-hover:opacity-100"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      <CardHeader className="pb-2 px-3 pt-3">
+                        <div className="flex items-start justify-between gap-1">
+                          <CardTitle className="text-sm leading-tight">
+                            {option.name}
+                            {option.referenceUrl && (
+                              <a
+                                href={option.referenceUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-1 inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+                                title={option.referenceUrl}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="h-2.5 w-2.5" />
+                                {getReferenceLabel(option.referenceUrl)}
+                              </a>
+                            )}
+                          </CardTitle>
+                          {canManageOptions && !expired && (
                             <button
                               type="button"
                               onClick={() => {
-                                editOptionForm.reset({ name: option.name, description: option.description ?? "", referenceUrl: option.referenceUrl ?? "" })
+                                setEditOptionName(option.name)
+                                setEditOptionDesc(option.description ?? "")
+                                setEditOptionUrl(option.referenceUrl ?? "")
                                 setEditOptionId(option.id)
                               }}
                               className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                             >
                               <Pencil className="h-3 w-3" />
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Remover "${option.name}"?`)) {
-                                  removeOptionMutation.mutate(option.id)
-                                }
-                              }}
-                              className="shrink-0 rounded-md p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
+                          )}
+                        </div>
+                        <CardDescription className="line-clamp-1 text-xs">
+                          {option.description || "Sem descrição"}
+                        </CardDescription>
+                        {option.createdBy && (
+                          <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Users className="h-2.5 w-2.5" />
+                            {option.createdBy.name || "Alguém"}
                           </div>
                         )}
-                      </div>
-                      <CardDescription className="line-clamp-1 text-xs">
-                        {option.description || "Sem descrição"}
-                      </CardDescription>
-                      {option.createdBy && (
-                        <div className="mt-1 flex items-center gap-1">
-                          <Avatar size="sm">
-                            {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
-                            <AvatarFallback className="text-[8px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
-                          </Avatar>
-                          <span className="text-[10px] text-muted-foreground">{option.createdBy.name}</span>
+                      </CardHeader>
+                      <CardContent className="px-3 pb-3 pt-0">
+                        <div className="flex gap-1">
+                          {!list?.rankedVoting && !expired && (isParticipant || list?.isPublic) && (
+                            <>
+                              {hasVoted ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 text-destructive hover:text-destructive"
+                                  onClick={() => removeVoteMutation.mutate(option.id)}
+                                  disabled={removeVoteMutation.isPending}
+                                >
+                                  <X className="mr-1 h-3 w-3" />
+                                  Remover voto
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => voteMutation.mutate(option.id)}
+                                  disabled={voteMutation.isPending || (!list.allowMultipleVotes && myVotes.length > 0)}
+                                >
+                                  <Check className="mr-1 h-3 w-3" />
+                                  Votar
+                                </Button>
+                              )}
+                            </>
+                          )}
+                          {canManageOptions && !expired && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeOptionMutation.mutate(option.id)}
+                              disabled={removeOptionMutation.isPending}
+                              className="text-destructive px-2"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
-                      )}
-                    </CardHeader>
-                    <CardContent className="px-3 pb-3 pt-0">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[11px] font-medium text-muted-foreground">
-                          {option._count?.votes ?? 0} voto{(option._count?.votes ?? 0) !== 1 ? "s" : ""}
-                        </span>
-                        {!list.rankedVoting && (isParticipant || list?.isPublic) && !expired && (
-                          option._count?.isVotedByMe ? (
-                            <button
-                              onClick={() => removeVoteMutation.mutate(option.id)}
-                              disabled={removeVoteMutation.isPending}
-                              className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                            >
-                              {removeVoteMutation.isPending ? (
-                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
-                              ) : (
-                                <X className="h-3 w-3" />
-                              )}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => voteMutation.mutate(option.id)}
-                              disabled={voteMutation.isPending || (!list.allowMultipleVotes && myVotes.length > 0)}
-                              className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                            >
-                              {voteMutation.isPending ? (
-                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
-                              ) : (
-                                <Check className="h-3 w-3" />
-                              )}
-                            </button>
-                          )
-                        )}
-                      </div>
-                    </CardContent>
-                  </AnimatedCard>
-                ))}
+                      </CardContent>
+                    </AnimatedCard>
+                  )
+                })}
               </div>
-            )}
-
-            {editOptionId && editOption && (
-              <Dialog open={!!editOptionId} onOpenChange={(o) => { if (!o) { setEditOptionId(null); editOptionForm.reset({ name: "", description: "" }) } }}>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Editar opção</DialogTitle>
-                  </DialogHeader>
-                  <form
-                    onSubmit={editOptionForm.handleSubmit((data) => {
-                      updateOptionMutation.mutate({
-                        optionId: editOptionId,
-                        name: data.name,
-                        description: data.description || undefined,
-                        referenceUrl: data.referenceUrl || undefined,
-                      })
-                    })}
-                    className="space-y-4"
-                  >
-                    <div className="space-y-2">
-                      <Label htmlFor="editOptionName">Nome</Label>
-                      <Input id="editOptionName" {...editOptionForm.register("name")} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="editOptionDescription">Descrição (opcional)</Label>
-                      <Textarea id="editOptionDescription" {...editOptionForm.register("description")} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="editOptionUrl">Link de referência (opcional)</Label>
-                      <Input id="editOptionUrl" type="url" {...editOptionForm.register("referenceUrl")} />
-                    </div>
-                    <Button type="submit" className="w-full" disabled={updateOptionMutation.isPending}>
-                      {updateOptionMutation.isPending ? "Salvando..." : "Salvar"}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
             )}
           </TabsContent>
 
