@@ -10,11 +10,12 @@ import { ProfileContent } from "./ProfileContent"
 export default async function ProfilePage() {
   const session = await auth()
 
+  const userId = session!.user!.id
   const [dbUser, createdListsCount, participatingCount, votesCount] = await Promise.all([
-    findUserById(session!.user!.id),
-    countUserCreatedLists(session.user.id),
-    countUserParticipations(session.user.id),
-    countUserVotes(session.user.id),
+    findUserById(userId),
+    countUserCreatedLists(userId),
+    countUserParticipations(userId),
+    countUserVotes(userId),
   ])
 
   const data = {
