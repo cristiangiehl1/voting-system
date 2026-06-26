@@ -5,7 +5,6 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +13,7 @@ import { Scale, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { PageTransition } from "@/components/PageTransition"
 import { loginSchema, type LoginData } from "@/lib/schemas"
+import Link from "next/link"
 
 export function LoginForm() {
   const router = useRouter()
@@ -92,7 +92,7 @@ export function LoginForm() {
             </form>
             <div className="mt-4 flex items-center justify-between text-sm">
               <a
-                href="/forgot-password"
+                href="/forgot"
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 Esqueceu a senha?
