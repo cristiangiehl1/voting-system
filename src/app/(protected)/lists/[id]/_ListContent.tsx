@@ -147,7 +147,8 @@ export default function ListPageContent() {
   const options = optionsData?.pages.flatMap(p => p.items) ?? []
 
   const { data: participants = [] } = useParticipants(listId)
-  const { data: myVotes = [] } = useMyVotes(listId, !!session?.user?.id)
+  const { data: myVotesData } = useMyVotes(listId, !!session?.user?.id)
+  const myVotes = myVotesData ?? []
 
   const { data: userLists = [] } = useQuery({
     queryKey: ["my-lists"],
@@ -365,7 +366,7 @@ export default function ListPageContent() {
       }
     }
     setRankings(initial)
-  }, [myVotes])
+  }, [myVotesData])
 
   function setRank(optionId: string, rank: number | null) {
     setRankings((prev) => {
@@ -907,6 +908,7 @@ export default function ListPageContent() {
                         <Label>Adicionar por email</Label>
                         <div className="flex gap-2">
                           <Input
+                            className="min-w-0 flex-1"
                             placeholder="email@convidado.com"
                             value={manualEmail}
                             onChange={(e) => setManualEmail(e.target.value)}
@@ -923,6 +925,7 @@ export default function ListPageContent() {
                           <Button
                             variant="outline"
                             size="icon"
+                            className="shrink-0"
                             onClick={() => {
                               if (manualEmail.includes("@") && !selectedEmails.includes(manualEmail)) {
                                 setSelectedEmails((prev) => [...prev, manualEmail])
