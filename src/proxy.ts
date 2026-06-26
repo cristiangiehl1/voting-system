@@ -3,17 +3,11 @@ import { NextResponse } from "next/server"
 
 export default withAuth(
   function proxy(req) {
-    const { pathname, searchParams } = req.nextUrl
-    const isRSC = searchParams.has("_rsc")
-
-    if (isRSC) {
-      return NextResponse.next()
-    }
-
-    const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password")
+    const pathname = req.nextUrl.pathname
+    const isLoginRoute = pathname.startsWith("/login") || pathname.startsWith("/register")
     const isLoggedIn = !!req.nextauth.token
 
-    if (isAuthRoute && isLoggedIn) {
+    if (isLoginRoute && isLoggedIn) {
       return NextResponse.redirect(new URL("/", req.url))
     }
 
@@ -22,15 +16,9 @@ export default withAuth(
   {
     callbacks: {
       authorized({ req, token }) {
-        const { pathname, searchParams } = req.nextUrl
-        const isRSC = searchParams.has("_rsc")
-
-        if (isRSC) {
-          return true
-        }
-
-        const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password")
-        const isPublicRoute = pathname === "/" || pathname.startsWith("/share")
+        const pathname = req.nextUrl.pathname
+        const isAuthRoute = pathname.startsWith("/login") || pathname.startsWith("/register")
+        const isPublicRoute = pathname === "/" || pathname.startsWith("/share") || pathname.startsWith("/forgot-password") || pathname.startsWith("/reset-password")
 
         if (isAuthRoute || isPublicRoute) {
           return true
