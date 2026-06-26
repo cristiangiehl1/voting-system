@@ -491,8 +491,41 @@ export default function ListPageContent() {
 
   if (!list) {
     return (
-      <div className="container mx-auto px-4 py-10">
-        <div className="h-40 animate-pulse rounded-lg bg-muted" />
+      <div className="container mx-auto px-4 py-10 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
+          <div className="flex gap-2">
+            <div className="h-9 w-28 animate-pulse rounded-lg bg-muted" />
+            <div className="h-9 w-28 animate-pulse rounded-lg bg-muted" />
+          </div>
+        </div>
+        <div className="flex justify-center">
+          <div className="aspect-square w-full max-w-md animate-pulse rounded-2xl bg-muted" />
+        </div>
+        <div className="space-y-3">
+          <div className="h-8 w-72 animate-pulse rounded-lg bg-muted" />
+          <div className="h-4 w-96 animate-pulse rounded-lg bg-muted" />
+          <div className="flex gap-4">
+            <div className="h-4 w-32 animate-pulse rounded-lg bg-muted" />
+            <div className="h-4 w-24 animate-pulse rounded-lg bg-muted" />
+            <div className="h-4 w-44 animate-pulse rounded-lg bg-muted" />
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
+          <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
+        </div>
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="overflow-hidden rounded-xl bg-card">
+              <div className="aspect-square w-full animate-pulse bg-muted" />
+              <div className="p-3 space-y-2">
+                <div className="h-4 w-full animate-pulse rounded bg-muted" />
+                <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -521,11 +554,24 @@ export default function ListPageContent() {
           </div>
         </div>
 
-        <div className="mb-6 overflow-hidden rounded-xl">
+        <div className="relative mb-6">
           {list.imageUrl ? (
-            <img src={list.imageUrl} alt={list.name} className="aspect-square w-full max-w-md mx-auto object-cover" />
+            <>
+              <div
+                className="absolute inset-0 -top-32 -bottom-32 scale-110 opacity-20 blur-3xl"
+                style={{
+                  maskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
+                  WebkitMaskImage: "linear-gradient(to bottom, black 40%, transparent 100%)",
+                }}
+              >
+                <img src={list.imageUrl} alt="" className="h-full w-full object-cover" />
+              </div>
+              <div className="relative overflow-hidden rounded-2xl">
+                <img src={list.imageUrl} alt={list.name} className="aspect-square w-full max-w-md mx-auto object-cover rounded-2xl" />
+              </div>
+            </>
           ) : (
-            <div className="flex aspect-square w-full max-w-md mx-auto items-center justify-center bg-muted">
+            <div className="flex aspect-square w-full max-w-md mx-auto items-center justify-center rounded-2xl bg-muted">
               <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
             </div>
           )}
@@ -1046,7 +1092,7 @@ export default function ListPageContent() {
                   </CardContent>
                 </AnimatedCard>
 
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {[...rankedOptions, ...unrankedOptions].map((option, index) => {
                     const rank = getRank(option.id)
                     return (
@@ -1073,20 +1119,20 @@ export default function ListPageContent() {
                               </button>
                             )}
                           </div>
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <CardTitle className="text-lg">
+                        <CardHeader className="pb-2 px-3 pt-3">
+                          <div className="flex items-start justify-between gap-1">
+                            <CardTitle className="text-sm leading-tight">
                               {option.name}
                               {option.referenceUrl && (
                                 <a
                                   href={option.referenceUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="ml-2 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                                  className="ml-1 inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
                                   title={option.referenceUrl}
                                   onClick={(e) => e.stopPropagation()}
                                 >
-                                  <ExternalLink className="h-3 w-3" />
+                                  <ExternalLink className="h-2.5 w-2.5" />
                                   {getReferenceLabel(option.referenceUrl)}
                                 </a>
                               )}
@@ -1098,38 +1144,38 @@ export default function ListPageContent() {
                                   editOptionForm.reset({ name: option.name, description: option.description ?? "", referenceUrl: option.referenceUrl ?? "" })
                                   setEditOptionId(option.id)
                                 }}
-                                className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                                className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                               >
-                                <Pencil className="h-4 w-4" />
+                                <Pencil className="h-3 w-3" />
                               </button>
                             )}
                           </div>
-                          <CardDescription className="line-clamp-2">
+                          <CardDescription className="line-clamp-1 text-xs">
                             {option.description || "Sem descrição"}
                           </CardDescription>
                           {option.createdBy && (
-                            <div className="mt-2 flex items-center gap-1.5">
+                            <div className="mt-1 flex items-center gap-1">
                               <Avatar size="sm">
                                 {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
-                                <AvatarFallback className="text-[10px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
+                                <AvatarFallback className="text-[8px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
                               </Avatar>
-                              <span className="text-xs text-muted-foreground">{option.createdBy.name}</span>
+                              <span className="text-[10px] text-muted-foreground">{option.createdBy.name}</span>
                             </div>
                           )}
                         </CardHeader>
-                        <CardContent>
-                          <div className="mb-4">
-                            <Label className="text-xs text-muted-foreground">
-                              Sua posição
-                            </Label>
-                            <div className="mt-1 flex flex-wrap gap-1">
+                        <CardContent className="px-3 pb-3 pt-0">
+                          <div className="mb-2">
+                            <span className="text-[10px] font-medium text-muted-foreground">
+                              Posição
+                            </span>
+                            <div className="mt-0.5 flex flex-wrap gap-0.5">
                               {getRankOptions(option.id).map((r) => (
                                 <button
                                   key={r.value}
                                   type="button"
                                   onClick={() => setRank(option.id, rank === r.value ? null : r.value)}
                                   disabled={r.disabled && rank !== r.value}
-                                  className={`flex h-8 w-8 items-center justify-center rounded-md text-xs font-medium transition-all ${
+                                  className={`flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium transition-all ${
                                     rank === r.value
                                       ? "bg-primary text-primary-foreground shadow-sm"
                                       : r.disabled
@@ -1144,15 +1190,15 @@ export default function ListPageContent() {
                                 <button
                                   type="button"
                                   onClick={() => setRank(option.id, null)}
-                                  className="flex h-8 w-8 items-center justify-center rounded-md bg-destructive/10 text-xs font-medium text-destructive hover:bg-destructive/20"
+                                  className="flex h-6 w-6 items-center justify-center rounded bg-destructive/10 text-[10px] font-medium text-destructive hover:bg-destructive/20"
                                 >
-                                  <X className="h-3 w-3" />
+                                  <X className="h-2.5 w-2.5" />
                                 </button>
                               )}
                             </div>
                           </div>
                           {list.revealVotes && option.votes && option.votes.length > 0 && (
-                            <div className="mb-4">
+                            <div className="mb-2">
                               <p className="mb-1 text-xs font-medium text-muted-foreground">Votaram:</p>
                               <div className="flex flex-wrap gap-1">
                                 {option.votes.map((vote: any) => {
@@ -1168,16 +1214,14 @@ export default function ListPageContent() {
                             </div>
                           )}
                           {canManageOptions && !expired && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="mt-2 w-full text-destructive"
+                            <button
+                              type="button"
                               onClick={() => removeOptionMutation.mutate(option.id)}
                               disabled={removeOptionMutation.isPending}
+                              className="mt-1 w-full rounded text-[10px] text-destructive hover:bg-destructive/10 transition-colors py-1"
                             >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Remover opção
-                            </Button>
+                              Remover
+                            </button>
                           )}
                         </CardContent>
                       </AnimatedCard>
@@ -1186,7 +1230,7 @@ export default function ListPageContent() {
                 </div>
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {options.map((option, index) => {
                   const voted = myVotes.some((v) => v.optionId === option.id)
                   return (
@@ -1213,20 +1257,20 @@ export default function ListPageContent() {
                             </button>
                           )}
                         </div>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="text-lg">
+                      <CardHeader className="pb-2 px-3 pt-3">
+                        <div className="flex items-start justify-between gap-1">
+                          <CardTitle className="text-sm leading-tight">
                             {option.name}
                             {option.referenceUrl && (
                               <a
                                 href={option.referenceUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="ml-2 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                                className="ml-1 inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
                                 title={option.referenceUrl}
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <ExternalLink className="h-3 w-3" />
+                                <ExternalLink className="h-2.5 w-2.5" />
                                 {getReferenceLabel(option.referenceUrl)}
                               </a>
                             )}
@@ -1238,32 +1282,32 @@ export default function ListPageContent() {
                                 editOptionForm.reset({ name: option.name, description: option.description ?? "", referenceUrl: option.referenceUrl ?? "" })
                                 setEditOptionId(option.id)
                               }}
-                              className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                              className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                             >
-                              <Pencil className="h-4 w-4" />
+                              <Pencil className="h-3 w-3" />
                             </button>
                           )}
                         </div>
-                          <CardDescription className="line-clamp-2">
+                          <CardDescription className="line-clamp-1 text-xs">
                             {option.description || "Sem descrição"}
                           </CardDescription>
                           {option.createdBy && (
-                            <div className="mt-2 flex items-center gap-1.5">
+                            <div className="mt-1 flex items-center gap-1">
                               <Avatar size="sm">
                                 {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
-                                <AvatarFallback className="text-[10px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
+                                <AvatarFallback className="text-[8px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
                               </Avatar>
-                              <span className="text-xs text-muted-foreground">{option.createdBy.name}</span>
+                              <span className="text-[10px] text-muted-foreground">{option.createdBy.name}</span>
                             </div>
                           )}
                         </CardHeader>
-                      <CardContent>
-                        <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-                          <Trophy className="h-4 w-4" />
+                      <CardContent className="px-3 pb-3 pt-0">
+                        <div className="mb-2 flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Trophy className="h-3 w-3" />
                           {option._count.votes} voto{option._count.votes !== 1 ? "s" : ""}
                         </div>
                         {list.revealVotes && option.votes && option.votes.length > 0 && (
-                          <div className="mb-4">
+                          <div className="mb-2">
                             <p className="mb-1 text-xs font-medium text-muted-foreground">Votaram:</p>
                             <div className="flex flex-wrap gap-1">
                               {option.votes.map((vote: any) => {
@@ -1279,57 +1323,54 @@ export default function ListPageContent() {
                           </div>
                         )}
                         {session && (isParticipant || list?.isPublic) && !expired && (
-                          <>
+                          <div className="mb-1">
                             {voted ? (
-                              <Button
-                                variant="outline"
-                                className="w-full"
+                              <button
+                                type="button"
                                 onClick={() => removeVoteMutation.mutate(option.id)}
                                 disabled={removeVoteMutation.isPending}
+                                className="w-full rounded bg-secondary py-1 text-[11px] font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
                               >
-                                <X className="mr-2 h-4 w-4" />
                                 Remover voto
-                              </Button>
+                              </button>
                             ) : (
-                              <Button
-                                className="w-full"
+                              <button
+                                type="button"
                                 onClick={() => voteMutation.mutate(option.id)}
                                 disabled={
                                   voteMutation.isPending ||
                                   (!list.allowMultipleVotes && myVotes.length > 0)
                                 }
+                                className="w-full rounded bg-primary py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
                               >
-                                <Check className="mr-2 h-4 w-4" />
                                 Votar
-                              </Button>
+                              </button>
                             )}
                             {!list.allowMultipleVotes && myVotes.length > 0 && !voted && (
-                              <p className="mt-2 text-center text-xs text-muted-foreground">
-                                Você já usou seu voto nesta lista.
+                              <p className="mt-1 text-center text-[10px] text-muted-foreground">
+                                Você já votou.
                               </p>
                             )}
-                          </>
+                          </div>
                         )}
                         {canManageOptions && !expired && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="mt-2 w-full text-destructive"
+                          <button
+                            type="button"
                             onClick={() => removeOptionMutation.mutate(option.id)}
                             disabled={removeOptionMutation.isPending}
+                            className="mt-1 w-full rounded text-[10px] text-destructive hover:bg-destructive/10 transition-colors py-1"
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Remover opção
-                          </Button>
+                            Remover
+                          </button>
                         )}
                         {session && !isParticipant && !isOwner && !list?.isPublic && (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-[10px] text-muted-foreground">
                             Apenas participantes podem votar.
                           </p>
                         )}
                         {session && !isParticipant && !isOwner && list?.isPublic && (
-                          <p className="text-xs text-muted-foreground">
-                            Vote para participar automaticamente desta lista pública.
+                          <p className="text-[10px] text-muted-foreground">
+                            Vote para participar.
                           </p>
                         )}
                       </CardContent>

@@ -342,7 +342,7 @@ export default function ShareContent() {
           </div>
         )}
 
-        <div className="mb-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-8 grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {options.map((option: {
             id: string; name: string; description?: string | null; referenceUrl?: string | null;
             imageUrl?: string | null; imageId?: string | null; _count?: { votes: number };
@@ -360,88 +360,88 @@ export default function ShareContent() {
               >
                 <div className="overflow-hidden rounded-t-xl">
                   {option.imageUrl ? (
-                    <img src={option.imageUrl} alt={option.name} className="h-48 w-full object-cover" />
+                    <img src={option.imageUrl} alt={option.name} className="aspect-square w-full object-cover" />
                   ) : (
-                    <div className="flex h-48 w-full items-center justify-center bg-muted">
-                      <ImageIcon className="h-8 w-8 text-muted-foreground/50" />
+                    <div className="flex aspect-square w-full items-center justify-center bg-muted">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground/50" />
                     </div>
                   )}
                 </div>
 
-                <div className="p-4">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <h3 className="text-lg font-semibold">
+                <div className="p-3">
+                  <div className="mb-1 flex items-start justify-between gap-1">
+                    <h3 className="text-sm font-semibold leading-tight">
                       {option.name}
                       {option.referenceUrl && (
                         <a
                           href={option.referenceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="ml-2 inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                          className="ml-1 inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
                         >
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="h-2.5 w-2.5" />
                           {getReferenceLabel(option.referenceUrl)}
                         </a>
                       )}
                     </h3>
                   </div>
                   {option.description && (
-                    <p className="mb-2 text-sm text-muted-foreground line-clamp-2">{option.description}</p>
+                    <p className="mb-1 text-[11px] text-muted-foreground line-clamp-1">{option.description}</p>
                   )}
                   {option.createdBy && (
-                    <div className="mb-3 flex items-center gap-1.5">
+                    <div className="mb-2 flex items-center gap-1">
                       <Avatar size="sm">
                         {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
-                        <AvatarFallback className="text-[10px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
+                        <AvatarFallback className="text-[8px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
                       </Avatar>
-                      <span className="text-xs text-muted-foreground">{option.createdBy.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{option.createdBy.name}</span>
                     </div>
                   )}
 
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-muted-foreground">
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-[11px] font-medium text-muted-foreground">
                       {voteCount} voto{voteCount !== 1 ? "s" : ""}
                     </span>
 
                     {canVote && !list.rankedVoting && (
                       voted ? (
-                        <Button
-                          variant="secondary"
-                          size="sm"
+                        <button
+                          type="button"
                           onClick={() => removeVoteMutation.mutate(option.id)}
                           disabled={removeVoteMutation.isPending}
+                          className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
                         >
                           {removeVoteMutation.isPending ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <X className="h-3 w-3" />
                           )}
-                        </Button>
+                        </button>
                       ) : (
-                        <Button
-                          variant="default"
-                          size="sm"
+                        <button
+                          type="button"
                           onClick={() => voteMutation.mutate(option.id)}
                           disabled={voteMutation.isPending || (!list.allowMultipleVotes && myVoteOptionIds.size > 0)}
+                          className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                         >
                           {voteMutation.isPending ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <Check className="h-3 w-3" />
                           )}
-                        </Button>
+                        </button>
                       )
                     )}
 
                     {canVote && list?.rankedVoting && (
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-0.5">
                         {getRankOptions(option.id).map((r) => (
                           <button
                             key={r.value}
                             type="button"
                             onClick={() => setRank(option.id, rank === r.value ? null : r.value)}
                             disabled={r.disabled && rank !== r.value}
-                            className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-medium transition-all ${
+                            className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-medium transition-all ${
                               rank === r.value
                                 ? "bg-primary text-primary-foreground"
                                 : r.disabled
@@ -456,9 +456,9 @@ export default function ShareContent() {
                           <button
                             type="button"
                             onClick={() => setRank(option.id, null)}
-                            className="flex h-7 w-7 items-center justify-center rounded-md bg-destructive/10 text-xs font-medium text-destructive hover:bg-destructive/20"
+                            className="flex h-5 w-5 items-center justify-center rounded bg-destructive/10 text-[10px] font-medium text-destructive hover:bg-destructive/20"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-2.5 w-2.5" />
                           </button>
                         )}
                       </div>
