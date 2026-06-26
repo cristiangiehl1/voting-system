@@ -1,5 +1,11 @@
 import { cookies } from "next/headers"
 
+function getBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+  return "http://localhost:3000"
+}
+
 class ApiError extends Error {
   constructor(
     message: string,
@@ -24,7 +30,9 @@ async function serverRequest<T>(url: string, options?: RequestInit): Promise<T> 
     headers["Content-Type"] = "application/json"
   }
 
-  const res = await fetch(url, {
+  const fullUrl = url.startsWith("http") ? url : `${getBaseUrl()}${url}`
+
+  const res = await fetch(fullUrl, {
     headers: { ...headers, ...options?.headers as Record<string, string> },
     ...options,
   })
