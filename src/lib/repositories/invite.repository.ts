@@ -13,8 +13,21 @@ export async function findInvitesByEmail(email: string) {
 }
 
 export async function findInvitesByListId(listId: string) {
-  return prisma.invite.findMany({
+  const participantEmails = await prisma.participant.findMany({
     where: { listId },
+    select: { user: { select: { email: true } } },
+  })
+
+  const emailsToExclude = participantEmails
+    .map((p) => p.user.email)
+    .filter((e): e is string => !!e)
+
+  return prisma.invite.findMany({
+    where: {
+      listId,
+      status: "PENDING",
+      ...(emailsToExclude.length > 0 ? { NOT: { email: { in: emailsToExclude } } } : {}),
+    },
     orderBy: { createdAt: "desc" },
   })
 }
