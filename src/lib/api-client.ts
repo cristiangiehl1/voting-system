@@ -15,10 +15,13 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     headers["Content-Type"] = "application/json"
   }
 
-  const res = await fetch(url, {
-    headers: { ...headers, ...options?.headers as Record<string, string> },
-    ...options,
-  })
+  const mergedHeaders = { ...headers, ...options?.headers as Record<string, string> }
+  const fetchOptions: RequestInit = { ...options }
+  if (Object.keys(mergedHeaders).length > 0) {
+    fetchOptions.headers = mergedHeaders
+  }
+
+  const res = await fetch(url, fetchOptions)
 
   if (!res.ok) {
     let message = "Erro do servidor"
