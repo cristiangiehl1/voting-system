@@ -87,9 +87,13 @@ export function LoginForm() {
                 {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
               </div>
               <div className="flex justify-end">
-                <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                <button
+                  type="button"
+                  onClick={() => router.push("/forgot-password")}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
                   Esqueceu a senha?
-                </Link>
+                </button>
               </div>
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? "Entrando..." : "Entrar"}
