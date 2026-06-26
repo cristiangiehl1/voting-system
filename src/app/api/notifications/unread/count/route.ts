@@ -9,7 +9,8 @@ export async function GET() {
 
     const count = await countUnreadByUserId(session.user.id)
     return NextResponse.json({ count })
-  } catch {
-    return NextResponse.json({ count: 0 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro interno"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

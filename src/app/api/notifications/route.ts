@@ -9,7 +9,8 @@ export async function GET() {
 
     const notifications = await findNotificationsByUserId(session.user.id)
     return NextResponse.json(notifications)
-  } catch {
-    return NextResponse.json([])
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro interno"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
