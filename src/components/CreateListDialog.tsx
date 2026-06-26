@@ -49,6 +49,8 @@ export function CreateListDialog({ open, onOpenChange }: Props) {
         maxRank: data.maxRank,
         allowParticipantsToAddOptions: data.allowParticipantsToAddOptions,
         isPublic: data.isPublic,
+        imageId: data.imageId,
+        imageUrl: data.imageUrl,
       })
     },
     onSuccess: (listId) => {

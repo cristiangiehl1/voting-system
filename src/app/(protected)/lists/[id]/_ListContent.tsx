@@ -523,9 +523,9 @@ export default function ListPageContent() {
 
         <div className="mb-6 overflow-hidden rounded-xl">
           {list.imageUrl ? (
-            <img src={list.imageUrl} alt={list.name} className="h-72 w-full object-cover" />
+            <img src={list.imageUrl} alt={list.name} className="aspect-square w-full max-w-md mx-auto object-cover" />
           ) : (
-            <div className="flex h-72 w-full items-center justify-center bg-muted">
+            <div className="flex aspect-square w-full max-w-md mx-auto items-center justify-center bg-muted">
               <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
             </div>
           )}
@@ -1057,9 +1057,9 @@ export default function ListPageContent() {
                       >
                           <div className="group relative overflow-hidden rounded-t-xl">
                             {option.imageUrl ? (
-                              <img src={option.imageUrl} alt={option.name} className="h-56 w-full object-cover" />
+                              <img src={option.imageUrl} alt={option.name} className="aspect-square w-full object-cover" />
                             ) : (
-                              <div className="flex h-56 w-full items-center justify-center bg-muted">
+                              <div className="flex aspect-square w-full items-center justify-center bg-muted">
                                 <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
                               </div>
                             )}
@@ -1197,9 +1197,9 @@ export default function ListPageContent() {
                     >
                         <div className="group relative overflow-hidden rounded-t-xl">
                           {option.imageUrl ? (
-                            <img src={option.imageUrl} alt={option.name} className="h-56 w-full object-cover" />
+                            <img src={option.imageUrl} alt={option.name} className="aspect-square w-full object-cover" />
                           ) : (
-                            <div className="flex h-56 w-full items-center justify-center bg-muted">
+                            <div className="flex aspect-square w-full items-center justify-center bg-muted">
                               <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
                             </div>
                           )}
