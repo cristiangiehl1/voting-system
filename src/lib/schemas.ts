@@ -63,6 +63,19 @@ export const updateListSchema = z.object({
   { message: "Votação por ranking requer votos múltiplos ativos", path: ["rankedVoting"] }
 )
 
+export const forgotPasswordSchema = z.object({
+  email: z.string().email("Email inválido"),
+})
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(1, "Token é obrigatório"),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  confirmPassword: z.string().min(6, "Confirme sua senha"),
+}).refine(
+  (data) => data.password === data.confirmPassword,
+  { message: "Senhas não conferem", path: ["confirmPassword"] }
+)
+
 export type LoginData = z.infer<typeof loginSchema>
 export type RegisterData = z.infer<typeof registerSchema>
 export type CreateListData = z.infer<typeof createListSchema>
@@ -76,3 +89,5 @@ export const inviteSchema = z.object({
 
 export type InviteData = z.infer<typeof inviteSchema>
 export type UpdateProfileData = z.infer<typeof updateProfileSchema>
+export type ForgotPasswordData = z.infer<typeof forgotPasswordSchema>
+export type ResetPasswordData = z.infer<typeof resetPasswordSchema>

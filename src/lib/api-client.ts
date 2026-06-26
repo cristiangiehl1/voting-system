@@ -140,6 +140,16 @@ export const api = {
       method: "POST", body: JSON.stringify({ name, email, password }),
     }),
 
+  forgotPassword: (email: string) =>
+    request<{ error?: string; success?: boolean }>("/api/auth/forgot-password", {
+      method: "POST", body: JSON.stringify({ email }),
+    }),
+
+  resetPassword: (token: string, password: string) =>
+    request<{ error?: string; success?: boolean }>("/api/auth/reset-password", {
+      method: "POST", body: JSON.stringify({ token, password }),
+    }),
+
   getPublicList: (id: string) => request<any | null>(`/api/share/${id}`),
   getPublicOptions: (listId: string) => request<any[]>(`/api/share/${listId}/options`),
   getPublicResults: (listId: string) => request<any[]>(`/api/share/${listId}/results`),
