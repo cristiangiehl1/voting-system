@@ -149,7 +149,7 @@ export default function ListPageContent() {
   })
 
   const { data: userLists = [] } = useQuery({
-    queryKey: queryKeys.lists,
+    queryKey: ["my-lists"],
     queryFn: () => api.getMyLists(),
     enabled: !!session?.user?.id,
   })
