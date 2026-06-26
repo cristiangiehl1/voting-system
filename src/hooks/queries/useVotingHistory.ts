@@ -1,0 +1,11 @@
+import { useQuery } from "@tanstack/react-query"
+import { api } from "@/lib/api-client"
+import { queryKeys } from "@/lib/query-keys"
+
+export function useVotingHistory(enabled?: boolean) {
+  return useQuery({
+    queryKey: queryKeys.votingHistory,
+    queryFn: () => api.getMyVotingHistory(),
+    enabled,
+  })
+}

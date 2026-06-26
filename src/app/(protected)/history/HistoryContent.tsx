@@ -2,17 +2,17 @@
 
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { useQuery } from "@tanstack/react-query"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
-import { ArrowLeft, Vote, Trophy, ListOrdered, ExternalLink, CalendarDays } from "lucide-react"
-import { toast } from "sonner"
+import { ArrowLeft, Vote, ListOrdered, ExternalLink, CalendarDays } from "lucide-react"
 import { queryKeys } from "@/lib/query-keys"
 import { api } from "@/lib/api-client"
 import { formatDistanceToNow } from "@/lib/utils"
+import { useVotingHistory } from "@/hooks/queries/useVotingHistory"
+import { HistorySkeleton } from "@/components/skeletons/HistorySkeleton"
 
 function formatDate(date: Date | string) {
   return new Date(date).toLocaleDateString("pt-BR", {
@@ -26,11 +26,7 @@ export function HistoryContent() {
   const router = useRouter()
   const { data: session } = useSession()
 
-  const { data: history = [], isPending } = useQuery({
-    queryKey: queryKeys.votingHistory,
-    queryFn: () => api.getMyVotingHistory(),
-    enabled: !!session?.user?.id,
-  })
+  const { data: history = [], isPending } = useVotingHistory(!!session?.user?.id)
 
   if (!session) {
     return (
@@ -57,15 +53,7 @@ export function HistoryContent() {
         </div>
 
         {isPending ? (
-          <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="animate-pulse rounded-xl border border-border bg-card p-6">
-                <div className="mb-3 h-5 w-2/3 rounded bg-muted" />
-                <div className="mb-2 h-4 w-1/3 rounded bg-muted" />
-                <div className="h-4 w-1/2 rounded bg-muted" />
-              </div>
-            ))}
-          </div>
+          <HistorySkeleton />
         ) : history.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Vote className="mb-4 h-16 w-16 text-muted-foreground" />

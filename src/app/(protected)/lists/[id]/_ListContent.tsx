@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -55,6 +55,24 @@ import {
   type InviteData,
   type UpdateListData,
 } from "@/lib/schemas"
+import { useList } from "@/hooks/queries/useList"
+import { useOptions } from "@/hooks/queries/useOptions"
+import { useParticipants } from "@/hooks/queries/useParticipants"
+import { useMyVotes } from "@/hooks/queries/useMyVotes"
+import { useInvites } from "@/hooks/queries/useInvites"
+import { useCreateOption } from "@/hooks/mutations/useCreateOption"
+import { useAddParticipant } from "@/hooks/mutations/useAddParticipant"
+import { useRemoveParticipant } from "@/hooks/mutations/useRemoveParticipant"
+import { useVote } from "@/hooks/mutations/useVote"
+import { useRemoveVote } from "@/hooks/mutations/useRemoveVote"
+import { useUpdateList } from "@/hooks/mutations/useUpdateList"
+import { useUpdateOptionImage } from "@/hooks/mutations/useUpdateOptionImage"
+import { useUpdateOption } from "@/hooks/mutations/useUpdateOption"
+import { useRemoveOption } from "@/hooks/mutations/useRemoveOption"
+import { useDeleteList } from "@/hooks/mutations/useDeleteList"
+import { useSubmitRankedVotes } from "@/hooks/mutations/useSubmitRankedVotes"
+import { useCancelInvite } from "@/hooks/mutations/useCancelInvite"
+import { ListSkeleton } from "@/components/skeletons/ListSkeleton"
 
 const KNOWN_SITES: Record<string, string> = {
   "steampowered.com": "Steam",
@@ -121,32 +139,12 @@ export default function ListPageContent() {
   const [participantOpen, setParticipantOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
-  const { data: list } = useQuery({
-    queryKey: queryKeys.list(listId),
-    queryFn: () => api.getList(listId),
-    enabled: !!listId,
-  })
-
-  const { data: optionsData, isPending: optionsLoading, fetchNextPage: fetchNextOptions, hasNextPage: hasNextOptions, isFetchingNextPage: fetchingNextOptions } = useInfiniteQuery({
-    queryKey: queryKeys.options(listId),
-    queryFn: ({ pageParam }) => api.getOptionsPaginated(listId, pageParam as string | undefined),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: !!listId,
-  })
+  const { data: list } = useList(listId)
+  const { data: optionsData, isPending: optionsLoading, fetchNextPage: fetchNextOptions, hasNextPage: hasNextOptions, isFetchingNextPage: fetchingNextOptions } = useOptions(listId)
   const options = optionsData?.pages.flatMap(p => p.items) ?? []
 
-  const { data: participants = [] } = useQuery({
-    queryKey: queryKeys.participants(listId),
-    queryFn: () => api.getParticipants(listId),
-    enabled: !!listId,
-  })
-
-  const { data: myVotes = [] } = useQuery({
-    queryKey: queryKeys.myVotes(listId),
-    queryFn: () => api.getMyVotes(listId),
-    enabled: !!listId && !!session?.user?.id,
-  })
+  const { data: participants = [] } = useParticipants(listId)
+  const { data: myVotes = [] } = useMyVotes(listId, !!session?.user?.id)
 
   const { data: userLists = [] } = useQuery({
     queryKey: ["my-lists"],
@@ -164,22 +162,12 @@ export default function ListPageContent() {
     isOwner || participants.some((p) => p.user.id === session?.user?.id)
   const canManageOptions = isOwner || (isParticipant && list?.allowParticipantsToAddOptions)
 
-  const { data: invites = [] } = useQuery({
-    queryKey: queryKeys.invites(listId),
-    queryFn: () => api.getInvites(listId),
-    enabled: !!listId && isOwner,
-  })
+  const { data: invites = [] } = useInvites(listId, !!listId && isOwner)
 
-  const cancelInviteMutation = useMutation({
-    mutationFn: async (inviteId: string) => {
-      await api.cancelInvite(inviteId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.invites(listId) })
-      toast.success("Convite cancelado")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao cancelar convite"),
-  })
+  const cancelInviteMutation = useCancelInvite(listId,
+    () => toast.success("Convite cancelado"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao cancelar convite"),
+  )
 
   const settingsForm = useForm<UpdateListData>({
     resolver: zodResolver(updateListSchema),
@@ -230,96 +218,51 @@ export default function ListPageContent() {
   const [optionImageUploading, setOptionImageUploading] = useState(false)
   const optionImage = optionForm.watch("image")
 
-  const addOptionMutation = useMutation({
-    mutationFn: async (data: CreateOptionData & { imageId?: string; imageUrl?: string }) => {
-      await api.createOption(data.listId, { name: data.name, description: data.description, referenceUrl: data.referenceUrl, imageId: data.imageId, imageUrl: data.imageUrl })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
+  const addOptionMutation = useCreateOption(listId,
+    () => {
       optionForm.reset({ listId, name: "", description: "", referenceUrl: "" })
       setOptionOpen(false)
       toast.success("Opção adicionada")
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao adicionar opção"),
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao adicionar opção"),
+  )
 
-  const addParticipantMutation = useMutation({
-    mutationFn: async (data: InviteData) => {
-      await api.inviteParticipant(data.listId, data.email)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.participants(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.list(listId) })
+  const addParticipantMutation = useAddParticipant(listId,
+    () => {
       participantForm.reset({ listId, email: "" })
       setParticipantOpen(false)
       toast.success("Convite enviado")
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao convidar"),
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao convidar"),
+  )
 
-  const removeParticipantMutation = useMutation({
-    mutationFn: async (participantId: string) => {
-      await api.removeParticipant(listId, participantId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.participants(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.list(listId) })
-      toast.success("Participante removido")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover participante"),
-  })
+  const removeParticipantMutation = useRemoveParticipant(listId,
+    () => toast.success("Participante removido"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover participante"),
+  )
 
-  const voteMutation = useMutation({
-    mutationFn: async (optionId: string) => {
-      await api.vote(optionId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.myVotes(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.results(listId) })
-      toast.success("Voto registrado")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao votar"),
-  })
+  const voteMutation = useVote(listId, false,
+    () => toast.success("Voto registrado"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao votar"),
+  )
 
-  const removeVoteMutation = useMutation({
-    mutationFn: async (optionId: string) => {
-      await api.removeVote(optionId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.myVotes(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.results(listId) })
-      toast.success("Voto removido")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover voto"),
-  })
+  const removeVoteMutation = useRemoveVote(listId, false,
+    () => toast.success("Voto removido"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover voto"),
+  )
 
-  const updateListMutation = useMutation({
-    mutationFn: async (data: UpdateListData & { imageId?: string; imageUrl?: string }) => {
-      await api.updateList(listId, data)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.list(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.results(listId) })
+  const updateListMutation = useUpdateList(listId,
+    () => {
       setSettingsOpen(false)
       toast.success("Configuração atualizada")
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar configuração"),
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar configuração"),
+  )
 
-  const updateOptionImageMutation = useMutation({
-    mutationFn: async ({ optionId, imageId, imageUrl }: { optionId: string; imageId: string; imageUrl: string }) => {
-      await api.updateOptionImage(optionId, imageId, imageUrl)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.results(listId) })
-      toast.success("Imagem atualizada")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar imagem"),
-  })
+  const updateOptionImageMutation = useUpdateOptionImage(listId,
+    () => toast.success("Imagem atualizada"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar imagem"),
+  )
 
   async function handleChangeOptionImage(optionId: string) {
     const option = options.find((o) => o.id === optionId)
@@ -354,71 +297,37 @@ export default function ListPageContent() {
   }
 
   const [editOptionId, setEditOptionId] = useState<string | null>(null)
-  const [editImageUploading, setEditImageUploading] = useState(false)
-  const [editOptionImageFile, setEditOptionImageFile] = useState<File | null>(null)
   const editOption = options.find((o) => o.id === editOptionId)
   const editOptionForm = useForm({
     defaultValues: { name: "", description: "", referenceUrl: "" },
   })
 
-  const updateOptionMutation = useMutation({
-    mutationFn: async (data: { optionId: string; name: string; description?: string; referenceUrl?: string; imageId?: string; imageUrl?: string }) => {
-      await api.updateOption(data.optionId, {
-        name: data.name,
-        description: data.description,
-        referenceUrl: data.referenceUrl,
-        imageId: data.imageId,
-        imageUrl: data.imageUrl,
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.results(listId) })
+  const updateOptionMutation = useUpdateOption(listId,
+    () => {
       setEditOptionId(null)
       toast.success("Opção atualizada")
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar opção"),
-    onSettled: () => {
-      editOptionForm.reset({ name: "", description: "" })
-    },
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar opção"),
+  )
 
-  const removeOptionMutation = useMutation({
-    mutationFn: async (optionId: string) => {
-      await api.removeOption(optionId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
-      toast.success("Opção removida")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover opção"),
-  })
+  const removeOptionMutation = useRemoveOption(listId,
+    () => toast.success("Opção removida"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover opção"),
+  )
 
-  const deleteListMutation = useMutation({
-    mutationFn: async () => {
-      await api.deleteList(listId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists })
+  const deleteListMutation = useDeleteList(
+    () => {
       setSettingsOpen(false)
       toast.success("Lista deletada")
       router.push("/")
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao deletar lista"),
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao deletar lista"),
+  )
 
-  const submitRankedMutation = useMutation({
-    mutationFn: async (rankings: Array<{ optionId: string; rank: number }>) => {
-      await api.submitRankedVotes(listId, rankings)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.options(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.myVotes(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.results(listId) })
-      toast.success("Ranking registrado")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao registrar ranking"),
-  })
+  const submitRankedMutation = useSubmitRankedVotes(listId, false,
+    () => toast.success("Ranking registrado"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao registrar ranking"),
+  )
 
   const [listImageUploading, setListImageUploading] = useState(false)
   const listImage = settingsForm.watch("image")
@@ -490,44 +399,7 @@ export default function ListPageContent() {
   const unrankedOptions = options.filter((o) => getRank(o.id) == null)
 
   if (!list) {
-    return (
-      <div className="container mx-auto px-4 py-10 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
-          <div className="flex gap-2">
-            <div className="h-9 w-28 animate-pulse rounded-lg bg-muted" />
-            <div className="h-9 w-28 animate-pulse rounded-lg bg-muted" />
-          </div>
-        </div>
-        <div className="flex justify-center">
-          <div className="aspect-square w-full max-w-md animate-pulse rounded-2xl bg-muted" />
-        </div>
-        <div className="space-y-3">
-          <div className="h-8 w-72 animate-pulse rounded-lg bg-muted" />
-          <div className="h-4 w-96 animate-pulse rounded-lg bg-muted" />
-          <div className="flex gap-4">
-            <div className="h-4 w-32 animate-pulse rounded-lg bg-muted" />
-            <div className="h-4 w-24 animate-pulse rounded-lg bg-muted" />
-            <div className="h-4 w-44 animate-pulse rounded-lg bg-muted" />
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
-          <div className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
-        </div>
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="overflow-hidden rounded-xl bg-card">
-              <div className="aspect-square w-full animate-pulse bg-muted" />
-              <div className="p-3 space-y-2">
-                <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
+    return <ListSkeleton />
   }
 
   return (
@@ -597,7 +469,7 @@ export default function ListPageContent() {
                 {participants.length + 1} participante{participants.length !== 0 ? "s" : ""}
               </span>
               <span className="flex items-center gap-1">
-                <ListChecksIcon />
+                <Trophy className="h-4 w-4" />
                 {options.length} opção{options.length !== 1 ? "es" : ""}
               </span>
               <span className="flex items-center gap-1">
@@ -866,7 +738,7 @@ export default function ListPageContent() {
                         <Button
                           variant="destructive"
                           className="flex-1"
-                          onClick={() => deleteListMutation.mutate()}
+                          onClick={() => deleteListMutation.mutate(listId)}
                           disabled={deleteListMutation.isPending}
                         >
                           {deleteListMutation.isPending ? "Deletando..." : "Deletar"}
@@ -1013,7 +885,7 @@ export default function ListPageContent() {
                       <DialogTitle>Convidar participante</DialogTitle>
                     </DialogHeader>
                     <form
-                      onSubmit={participantForm.handleSubmit((data) => addParticipantMutation.mutate(data))}
+                      onSubmit={participantForm.handleSubmit((data) => addParticipantMutation.mutate(data.email))}
                       className="space-y-4"
                     >
                       <input type="hidden" {...participantForm.register("listId")} />
@@ -1164,118 +1036,135 @@ export default function ListPageContent() {
                           )}
                         </CardHeader>
                         <CardContent className="px-3 pb-3 pt-0">
-                          <div className="mb-2">
-                            <span className="text-[10px] font-medium text-muted-foreground">
-                              Posição
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[11px] font-medium text-muted-foreground">
+                              {option._count?.votes ?? 0} voto{(option._count?.votes ?? 0) !== 1 ? "s" : ""}
                             </span>
-                            <div className="mt-0.5 flex flex-wrap gap-0.5">
-                              {getRankOptions(option.id).map((r) => (
+                            {!list.rankedVoting && (isParticipant || list?.isPublic) && !expired && (
+                              option._count?.isVotedByMe ? (
                                 <button
-                                  key={r.value}
-                                  type="button"
-                                  onClick={() => setRank(option.id, rank === r.value ? null : r.value)}
-                                  disabled={r.disabled && rank !== r.value}
-                                  className={`flex h-6 w-6 items-center justify-center rounded text-[10px] font-medium transition-all ${
-                                    rank === r.value
-                                      ? "bg-primary text-primary-foreground shadow-sm"
-                                      : r.disabled
-                                        ? "cursor-not-allowed bg-muted text-muted-foreground/30"
-                                        : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                                  }`}
+                                  onClick={() => removeVoteMutation.mutate(option.id)}
+                                  disabled={removeVoteMutation.isPending}
+                                  className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
                                 >
-                                  {r.label}
+                                  {removeVoteMutation.isPending ? (
+                                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                                  ) : (
+                                    <X className="h-3 w-3" />
+                                  )}
                                 </button>
-                              ))}
-                              {rank != null && (
+                              ) : (
                                 <button
-                                  type="button"
-                                  onClick={() => setRank(option.id, null)}
-                                  className="flex h-6 w-6 items-center justify-center rounded bg-destructive/10 text-[10px] font-medium text-destructive hover:bg-destructive/20"
+                                  onClick={() => voteMutation.mutate(option.id)}
+                                  disabled={voteMutation.isPending || (!list.allowMultipleVotes && myVotes.length > 0)}
+                                  className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                                 >
-                                  <X className="h-2.5 w-2.5" />
+                                  {voteMutation.isPending ? (
+                                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                                  ) : (
+                                    <Check className="h-3 w-3" />
+                                  )}
                                 </button>
-                              )}
-                            </div>
-                          </div>
-                          {list.revealVotes && option.votes && option.votes.length > 0 && (
-                            <div className="mb-2">
-                              <p className="mb-1 text-xs font-medium text-muted-foreground">Votaram:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {option.votes.map((vote: any) => {
-                                  const displayName = vote.voter.name || vote.voter.email || "Anônimo"
-                                  return (
-                                    <Avatar key={vote.voter.id} size="sm" title={displayName}>
-                                      {vote.voter.imageUrl && <AvatarImage src={vote.voter.imageUrl} alt={displayName} />}
-                                      <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-                                    </Avatar>
-                                  )
-                                })}
+                              )
+                            )}
+                            {list.rankedVoting && (isParticipant || list?.isPublic) && !expired && (
+                              <div className="flex items-center gap-0.5">
+                                {getRankOptions(option.id).map((r) => (
+                                  <button
+                                    key={r.value}
+                                    onClick={() => setRank(option.id, rank === r.value ? null : r.value)}
+                                    disabled={r.disabled && rank !== r.value}
+                                    className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-medium transition-all ${
+                                      rank === r.value
+                                        ? "bg-primary text-primary-foreground"
+                                        : r.disabled
+                                          ? "cursor-not-allowed bg-muted text-muted-foreground/30"
+                                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                                    }`}
+                                  >
+                                    {r.label}
+                                  </button>
+                                ))}
+                                {rank != null && (
+                                  <button
+                                    onClick={() => setRank(option.id, null)}
+                                    className="flex h-5 w-5 items-center justify-center rounded bg-destructive/10 text-[10px] font-medium text-destructive hover:bg-destructive/20"
+                                  >
+                                    <X className="h-2.5 w-2.5" />
+                                  </button>
+                                )}
                               </div>
-                            </div>
-                          )}
-                          {canManageOptions && !expired && (
-                            <button
-                              type="button"
-                              onClick={() => removeOptionMutation.mutate(option.id)}
-                              disabled={removeOptionMutation.isPending}
-                              className="mt-1 w-full rounded text-[10px] text-destructive hover:bg-destructive/10 transition-colors py-1"
-                            >
-                              Remover
-                            </button>
-                          )}
+                            )}
+                          </div>
                         </CardContent>
                       </AnimatedCard>
                     )
                   })}
                 </div>
+
+                {optionsLoading && (
+                  <div className="mt-4 flex justify-center">
+                    <span className="text-sm text-muted-foreground">Carregando...</span>
+                  </div>
+                )}
+                {hasNextOptions && !optionsLoading && (
+                  <div className="mt-8 flex justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => fetchNextOptions()}
+                      disabled={fetchingNextOptions}
+                    >
+                      {fetchingNextOptions ? "Carregando..." : "Carregar mais opções"}
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                {options.map((option, index) => {
-                  const voted = myVotes.some((v) => v.optionId === option.id)
-                  return (
-                    <AnimatedCard
-                      key={option.id}
-                      className={`pt-0 ${voted ? "border-primary/50 bg-primary/5" : ""}`}
-                      style={{ animationDelay: `${index * 0.06}s` }}
-                    >
-                        <div className="group relative overflow-hidden rounded-t-xl">
-                          {option.imageUrl ? (
-                            <img src={option.imageUrl} alt={option.name} className="aspect-square w-full object-cover" />
-                          ) : (
-                            <div className="flex aspect-square w-full items-center justify-center bg-muted">
-                              <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
-                            </div>
-                          )}
-                          {canManageOptions && !expired && (
-                            <button
-                              type="button"
-                              onClick={() => handleChangeOptionImage(option.id)}
-                              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 shadow transition-opacity hover:bg-background group-hover:opacity-100"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                          )}
+                {options.map((option, index) => (
+                  <AnimatedCard
+                    key={option.id}
+                    className="pt-0"
+                    style={{ animationDelay: `${index * 0.06}s` }}
+                  >
+                    <div className="group relative overflow-hidden rounded-t-xl">
+                      {option.imageUrl ? (
+                        <img src={option.imageUrl} alt={option.name} className="aspect-square w-full object-cover" />
+                      ) : (
+                        <div className="flex aspect-square w-full items-center justify-center bg-muted">
+                          <ImageIcon className="h-10 w-10 text-muted-foreground/50" />
                         </div>
-                      <CardHeader className="pb-2 px-3 pt-3">
-                        <div className="flex items-start justify-between gap-1">
-                          <CardTitle className="text-sm leading-tight">
-                            {option.name}
-                            {option.referenceUrl && (
-                              <a
-                                href={option.referenceUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="ml-1 inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
-                                title={option.referenceUrl}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink className="h-2.5 w-2.5" />
-                                {getReferenceLabel(option.referenceUrl)}
-                              </a>
-                            )}
-                          </CardTitle>
-                          {canManageOptions && !expired && (
+                      )}
+                      {canManageOptions && !expired && (
+                        <button
+                          type="button"
+                          onClick={() => handleChangeOptionImage(option.id)}
+                          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-background/80 text-foreground opacity-0 shadow transition-opacity hover:bg-background group-hover:opacity-100"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <CardHeader className="pb-2 px-3 pt-3">
+                      <div className="flex items-start justify-between gap-1">
+                        <CardTitle className="text-sm leading-tight">
+                          {option.name}
+                          {option.referenceUrl && (
+                            <a
+                              href={option.referenceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-1 inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+                              title={option.referenceUrl}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink className="h-2.5 w-2.5" />
+                              {getReferenceLabel(option.referenceUrl)}
+                            </a>
+                          )}
+                        </CardTitle>
+                        {canManageOptions && !expired && (
+                          <div className="flex gap-1">
                             <button
                               type="button"
                               onClick={() => {
@@ -1286,324 +1175,183 @@ export default function ListPageContent() {
                             >
                               <Pencil className="h-3 w-3" />
                             </button>
-                          )}
-                        </div>
-                          <CardDescription className="line-clamp-1 text-xs">
-                            {option.description || "Sem descrição"}
-                          </CardDescription>
-                          {option.createdBy && (
-                            <div className="mt-1 flex items-center gap-1">
-                              <Avatar size="sm">
-                                {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
-                                <AvatarFallback className="text-[8px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
-                              </Avatar>
-                              <span className="text-[10px] text-muted-foreground">{option.createdBy.name}</span>
-                            </div>
-                          )}
-                        </CardHeader>
-                      <CardContent className="px-3 pb-3 pt-0">
-                        <div className="mb-2 flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <Trophy className="h-3 w-3" />
-                          {option._count.votes} voto{option._count.votes !== 1 ? "s" : ""}
-                        </div>
-                        {list.revealVotes && option.votes && option.votes.length > 0 && (
-                          <div className="mb-2">
-                            <p className="mb-1 text-xs font-medium text-muted-foreground">Votaram:</p>
-                            <div className="flex flex-wrap gap-1">
-                              {option.votes.map((vote: any) => {
-                                  const displayName = vote.voter.name || vote.voter.email || "Anônimo"
-                                  return (
-                                    <Avatar key={vote.voter.id} size="sm" title={displayName}>
-                                      {vote.voter.imageUrl && <AvatarImage src={vote.voter.imageUrl} alt={displayName} />}
-                                      <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-                                    </Avatar>
-                                  )
-                                })}
-                            </div>
-                          </div>
-                        )}
-                        {session && (isParticipant || list?.isPublic) && !expired && (
-                          <div className="mb-1">
-                            {voted ? (
-                              <button
-                                type="button"
-                                onClick={() => removeVoteMutation.mutate(option.id)}
-                                disabled={removeVoteMutation.isPending}
-                                className="w-full rounded bg-secondary py-1 text-[11px] font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
-                              >
-                                Remover voto
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => voteMutation.mutate(option.id)}
-                                disabled={
-                                  voteMutation.isPending ||
-                                  (!list.allowMultipleVotes && myVotes.length > 0)
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm(`Remover "${option.name}"?`)) {
+                                  removeOptionMutation.mutate(option.id)
                                 }
-                                className="w-full rounded bg-primary py-1 text-[11px] font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-                              >
-                                Votar
-                              </button>
-                            )}
-                            {!list.allowMultipleVotes && myVotes.length > 0 && !voted && (
-                              <p className="mt-1 text-center text-[10px] text-muted-foreground">
-                                Você já votou.
-                              </p>
-                            )}
+                              }}
+                              className="shrink-0 rounded-md p-0.5 text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
                           </div>
                         )}
-                        {canManageOptions && !expired && (
-                          <button
-                            type="button"
-                            onClick={() => removeOptionMutation.mutate(option.id)}
-                            disabled={removeOptionMutation.isPending}
-                            className="mt-1 w-full rounded text-[10px] text-destructive hover:bg-destructive/10 transition-colors py-1"
-                          >
-                            Remover
-                          </button>
+                      </div>
+                      <CardDescription className="line-clamp-1 text-xs">
+                        {option.description || "Sem descrição"}
+                      </CardDescription>
+                      {option.createdBy && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <Avatar size="sm">
+                            {option.createdBy.imageUrl && <AvatarImage src={option.createdBy.imageUrl} alt={option.createdBy.name ?? ""} />}
+                            <AvatarFallback className="text-[8px]">{getInitials(option.createdBy.name ?? "?")}</AvatarFallback>
+                          </Avatar>
+                          <span className="text-[10px] text-muted-foreground">{option.createdBy.name}</span>
+                        </div>
+                      )}
+                    </CardHeader>
+                    <CardContent className="px-3 pb-3 pt-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          {option._count?.votes ?? 0} voto{(option._count?.votes ?? 0) !== 1 ? "s" : ""}
+                        </span>
+                        {!list.rankedVoting && (isParticipant || list?.isPublic) && !expired && (
+                          option._count?.isVotedByMe ? (
+                            <button
+                              onClick={() => removeVoteMutation.mutate(option.id)}
+                              disabled={removeVoteMutation.isPending}
+                              className="flex h-6 w-6 items-center justify-center rounded bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors"
+                            >
+                              {removeVoteMutation.isPending ? (
+                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
+                              ) : (
+                                <X className="h-3 w-3" />
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => voteMutation.mutate(option.id)}
+                              disabled={voteMutation.isPending || (!list.allowMultipleVotes && myVotes.length > 0)}
+                              className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                            >
+                              {voteMutation.isPending ? (
+                                <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                              ) : (
+                                <Check className="h-3 w-3" />
+                              )}
+                            </button>
+                          )
                         )}
-                        {session && !isParticipant && !isOwner && !list?.isPublic && (
-                          <p className="text-[10px] text-muted-foreground">
-                            Apenas participantes podem votar.
-                          </p>
-                        )}
-                        {session && !isParticipant && !isOwner && list?.isPublic && (
-                          <p className="text-[10px] text-muted-foreground">
-                            Vote para participar.
-                          </p>
-                        )}
-                      </CardContent>
-                    </AnimatedCard>
-                  )
-                })}
+                      </div>
+                    </CardContent>
+                  </AnimatedCard>
+                ))}
               </div>
             )}
 
-            {hasNextOptions && (
-              <div className="mt-8 flex justify-center">
-                <Button
-                  variant="outline"
-                  className="gap-2"
-                  onClick={() => fetchNextOptions()}
-                  disabled={fetchingNextOptions}
-                >
-                  {fetchingNextOptions ? "Carregando..." : "Carregar mais opções"}
-                </Button>
-              </div>
+            {editOptionId && editOption && (
+              <Dialog open={!!editOptionId} onOpenChange={(o) => { if (!o) { setEditOptionId(null); editOptionForm.reset({ name: "", description: "" }) } }}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Editar opção</DialogTitle>
+                  </DialogHeader>
+                  <form
+                    onSubmit={editOptionForm.handleSubmit((data) => {
+                      updateOptionMutation.mutate({
+                        optionId: editOptionId,
+                        name: data.name,
+                        description: data.description || undefined,
+                        referenceUrl: data.referenceUrl || undefined,
+                      })
+                    })}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="editOptionName">Nome</Label>
+                      <Input id="editOptionName" {...editOptionForm.register("name")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="editOptionDescription">Descrição (opcional)</Label>
+                      <Textarea id="editOptionDescription" {...editOptionForm.register("description")} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="editOptionUrl">Link de referência (opcional)</Label>
+                      <Input id="editOptionUrl" type="url" {...editOptionForm.register("referenceUrl")} />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={updateOptionMutation.isPending}>
+                      {updateOptionMutation.isPending ? "Salvando..." : "Salvar"}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
             )}
-
-            <Dialog open={!!editOptionId} onOpenChange={(open) => { if (!open) setEditOptionId(null) }}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Editar opção</DialogTitle>
-                </DialogHeader>
-                <form
-                  onSubmit={editOptionForm.handleSubmit(async (data) => {
-                    let imageId: string | undefined
-                    let imageUrl: string | undefined
-
-                    if (editOptionImageFile) {
-                      setEditImageUploading(true)
-                      try {
-                        const fd = new FormData()
-                        fd.append("file", editOptionImageFile)
-                        fd.append("type", "option")
-                        if (editOption?.imageId) {
-                          fd.append("publicId", editOption.imageId)
-                        }
-
-                        const res = await fetch("/api/upload", { method: "POST", body: fd })
-                        const result = await res.json()
-                        if (!res.ok) throw new Error(result.error || "Erro ao fazer upload")
-                        imageId = result.publicId
-                        imageUrl = result.secureUrl
-                      } catch (error) {
-                        toast.error(error instanceof Error ? error.message : "Erro ao fazer upload")
-                        setEditImageUploading(false)
-                        return
-                      }
-                      setEditImageUploading(false)
-                    }
-
-                    updateOptionMutation.mutate({
-                      optionId: editOptionId!,
-                      name: data.name,
-                      description: data.description || undefined,
-                      referenceUrl: data.referenceUrl || undefined,
-                      imageId,
-                      imageUrl,
-                    })
-                  })}
-                  className="space-y-4"
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="editOptionName">Nome</Label>
-                    <Input id="editOptionName" {...editOptionForm.register("name")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="editOptionDescription">Descrição (opcional)</Label>
-                    <Textarea id="editOptionDescription" {...editOptionForm.register("description")} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="editOptionImage">Imagem (opcional)</Label>
-                    <Input
-                      id="editOptionImage"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setEditOptionImageFile(e.target.files?.[0] ?? null)}
-                      disabled={editImageUploading}
-                    />
-                    {editOptionImageFile ? (
-                      <div className="mt-2 overflow-hidden rounded-lg border border-border/50">
-                        <img
-                          src={URL.createObjectURL(editOptionImageFile)}
-                          alt="Preview"
-                          className="h-40 w-full object-cover"
-                        />
-                      </div>
-                    ) : editOption?.imageUrl ? (
-                      <div className="mt-2 overflow-hidden rounded-lg border border-border/50">
-                        <img src={editOption.imageUrl} alt="Atual" className="h-40 w-full object-cover" />
-                      </div>
-                    ) : null}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="editOptionReferenceUrl">Link de referência (opcional)</Label>
-                    <Input
-                      id="editOptionReferenceUrl"
-                      type="url"
-                      placeholder="https://www.imdb.com/title/tt0068646/"
-                      {...editOptionForm.register("referenceUrl")}
-                    />
-                    {(editOptionForm.watch("referenceUrl") ?? "") && (
-                      <p className="text-xs text-muted-foreground">
-                        {getReferenceLabel(editOptionForm.watch("referenceUrl") ?? "")}
-                      </p>
-                    )}
-                  </div>
-                  <Button type="submit" className="w-full" disabled={updateOptionMutation.isPending || editImageUploading}>
-                    {editImageUploading ? "Enviando imagem..." : updateOptionMutation.isPending ? "Salvando..." : "Salvar"}
-                  </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
           </TabsContent>
 
           <TabsContent value="participants" className="mt-4">
-            <AnimatedCard>
-              <CardHeader>
-                <CardTitle className="text-lg">Participantes</CardTitle>
-                <CardDescription>
-                  Pessoas convidadas para votar nesta lista. O criador também pode votar.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar size="sm">
-                        {list.createdBy.imageUrl && <AvatarImage src={list.createdBy.imageUrl} alt={list.createdBy.name || "Criador"} />}
-                        <AvatarFallback>{getInitials(list.createdBy.name || "Criador")}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{list.createdBy.name || "Criador"}</p>
-                        <p className="text-xs text-muted-foreground">{list.createdBy.email}</p>
-                      </div>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-xl bg-card p-4">
+                <div className="flex items-center gap-3">
+                  <Avatar size="sm">
+                    {session?.user?.image ? <AvatarImage src={session.user.image} alt={session.user.name ?? ""} /> : null}
+                    <AvatarFallback className="text-xs">
+                      {getInitials(session?.user?.name ?? "Você")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium">{session?.user?.name ?? "Você"}</p>
+                    <p className="text-xs text-muted-foreground">Criador</p>
+                  </div>
+                  <Badge variant="outline" className="ml-2">Você</Badge>
+                </div>
+              </div>
+
+              {participants.map((participant) => (
+                <div key={participant.id} className="flex items-center justify-between rounded-xl bg-card p-4">
+                  <div className="flex items-center gap-3">
+                    <Avatar size="sm">
+                      {participant.user.imageUrl ? <AvatarImage src={participant.user.imageUrl} alt={participant.user.name ?? ""} /> : null}
+                      <AvatarFallback className="text-xs">{getInitials(participant.user.name ?? "?")}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">{participant.user.name}</p>
+                      <p className="text-xs text-muted-foreground">{participant.user.email}</p>
                     </div>
-                    <Badge>Criador</Badge>
-                  </li>
-                  {participants.map((participant) => {
-                    const displayName = participant.user.name || "Sem nome"
-                    return (
-                    <li
-                      key={participant.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
+                  </div>
+                  {isOwner && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeParticipantMutation.mutate(participant.id)}
+                      disabled={removeParticipantMutation.isPending}
+                      className="text-destructive"
                     >
-                      <div className="flex items-center gap-3">
-                        <Avatar size="sm">
-                          {participant.user.imageUrl && <AvatarImage src={participant.user.imageUrl} alt={displayName} />}
-                          <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{displayName}</p>
-                          <p className="text-xs text-muted-foreground">{participant.user.email}</p>
+                      <X className="mr-1 h-4 w-4" />
+                      Remover
+                    </Button>
+                  )}
+                </div>
+              ))}
+
+              {invites.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Convites pendentes</h3>
+                  <div className="space-y-2">
+                    {invites.map((invite) => (
+                      <div key={invite.id} className="flex items-center justify-between rounded-xl border border-dashed bg-card/50 p-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground">{invite.email}</span>
+                          <Badge variant="secondary" className="text-[10px]">Pendente</Badge>
                         </div>
-                      </div>
-                      {isOwner && (
                         <Button
                           variant="ghost"
-                          size="icon"
-                          onClick={() => removeParticipantMutation.mutate(participant.id)}
-                          disabled={removeParticipantMutation.isPending}
+                          size="sm"
+                          onClick={() => cancelInviteMutation.mutate(invite.id)}
+                          disabled={cancelInviteMutation.isPending}
+                          className="h-7 text-xs text-destructive"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
+                          Cancelar
                         </Button>
-                      )}
-                    </li>
-                    )
-                  })}
-                </ul>
-
-                {isOwner && invites.filter((inv) => inv.status === "PENDING").length > 0 && (
-                  <div className="mt-6">
-                    <h4 className="mb-3 text-sm font-semibold text-muted-foreground">
-                      Convites pendentes
-                    </h4>
-                    <ul className="space-y-2">
-                      {invites.filter((inv) => inv.status === "PENDING").map((invite) => (
-                        <li
-                          key={invite.id}
-                          className="flex items-center justify-between rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-3"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground">{invite.email}</p>
-                            <p className="text-xs text-muted-foreground/60">
-                              Convidado em {new Date(invite.createdAt).toLocaleDateString("pt-BR")}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs text-muted-foreground hover:text-destructive"
-                            onClick={() => cancelInviteMutation.mutate(invite.id)}
-                            disabled={cancelInviteMutation.isPending}
-                          >
-                            Cancelar
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </CardContent>
-            </AnimatedCard>
+                </div>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>
     </PageTransition>
-  )
-}
-
-function ListChecksIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M11 12h8" />
-      <path d="M11 18h8" />
-      <path d="M11 6h8" />
-      <path d="M3 12h.01" />
-      <path d="M3 18h.01" />
-      <path d="M3 6h.01" />
-    </svg>
   )
 }

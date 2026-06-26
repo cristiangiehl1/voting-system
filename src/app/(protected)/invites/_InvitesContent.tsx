@@ -3,16 +3,17 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Mail, Check, X, Vote, CalendarDays, User, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
-import { queryKeys } from "@/lib/query-keys"
-import { api } from "@/lib/api-client"
 import { toast } from "sonner"
+import { useMyInvites } from "@/hooks/queries/useMyInvites"
+import { useAcceptInvite } from "@/hooks/mutations/useAcceptInvite"
+import { useRejectInvite } from "@/hooks/mutations/useRejectInvite"
+import { InvitesSkeleton } from "@/components/skeletons/InvitesSkeleton"
 
 function formatDate(date: Date | string) {
   return new Date(date).toLocaleDateString("pt-BR", {
@@ -37,33 +38,21 @@ type InviteData = {
 export default function InvitesPageContent() {
   const { data: session } = useSession()
   const router = useRouter()
-  const queryClient = useQueryClient()
 
-  const { data: invites = [], isPending } = useQuery({
-    queryKey: queryKeys.myInvites,
-    queryFn: () => api.getMyInvites(),
-    enabled: !!session?.user?.id,
-  })
+  const { data: invites = [], isPending } = useMyInvites(!!session?.user?.id)
 
-  const acceptMutation = useMutation({
-    mutationFn: ({ inviteId }: { inviteId: string; listId: string }) => api.acceptInvite(inviteId),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.myInvites })
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists })
+  const acceptMutation = useAcceptInvite(
+    (listId) => {
       toast.success("Convite aceito!")
-      router.push(`/lists/${variables.listId}`)
+      router.push(`/lists/${listId}`)
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao aceitar convite"),
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao aceitar convite"),
+  )
 
-  const rejectMutation = useMutation({
-    mutationFn: (inviteId: string) => api.rejectInvite(inviteId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.myInvites })
-      toast.success("Convite recusado")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao recusar convite"),
-  })
+  const rejectMutation = useRejectInvite(
+    () => toast.success("Convite recusado"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao recusar convite"),
+  )
 
   if (!session) {
     return (
@@ -91,19 +80,7 @@ export default function InvitesPageContent() {
         </div>
 
         {isPending ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="animate-pulse rounded-xl border border-border bg-card p-6">
-                <div className="mb-3 h-5 w-2/3 rounded bg-muted" />
-                <div className="mb-4 h-4 w-1/3 rounded bg-muted" />
-                <div className="mb-6 h-4 w-1/2 rounded bg-muted" />
-                <div className="flex gap-2">
-                  <div className="h-9 flex-1 rounded bg-muted" />
-                  <div className="h-9 flex-1 rounded bg-muted" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <InvitesSkeleton />
         ) : invites.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <Mail className="mb-4 h-12 w-12 text-muted-foreground" />

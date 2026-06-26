@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -14,9 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Scale, LogOut, UserCircle, ListChecks, Mail, Bell, History } from "lucide-react"
-import { queryKeys } from "@/lib/query-keys"
-import { api } from "@/lib/api-client"
 import { formatDistanceToNow } from "@/lib/utils"
+import { useNotifications } from "@/hooks/queries/useNotifications"
+import { useNotificationCount } from "@/hooks/queries/useNotificationCount"
+import { usePendingInvitesCount } from "@/hooks/queries/usePendingInvitesCount"
+import { useMarkNotificationRead } from "@/hooks/mutations/useMarkNotificationRead"
 
 const NOTIFICATION_ICONS: Record<string, string> = {
   INVITE_RECEIVED: "📨",
@@ -31,37 +32,11 @@ const NOTIFICATION_ICONS: Record<string, string> = {
 export function Header() {
   const { data: session } = useSession()
   const router = useRouter()
-  const queryClient = useQueryClient()
 
-  const { data: pendingInvitesCount = 0 } = useQuery({
-    queryKey: [...queryKeys.myInvites, "count"],
-    queryFn: () => api.countMyPendingInvites(),
-    enabled: !!session?.user?.id,
-    refetchInterval: 30_000,
-  })
-
-  const { data: unreadCount = 0 } = useQuery({
-    queryKey: queryKeys.notificationCount,
-    queryFn: () => api.countUnreadNotifications(),
-    enabled: !!session?.user?.id,
-    refetchInterval: 15_000,
-  })
-
-  const { data: notifications = [] } = useQuery({
-    queryKey: queryKeys.notifications,
-    queryFn: () => api.getMyNotifications(),
-    enabled: !!session?.user?.id,
-  })
-
-  const markReadMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.markNotificationAsRead(id)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
-      queryClient.invalidateQueries({ queryKey: queryKeys.notificationCount })
-    },
-  })
+  const { data: pendingInvitesCount = 0 } = usePendingInvitesCount(!!session?.user?.id)
+  const { data: unreadCount = 0 } = useNotificationCount(!!session?.user?.id)
+  const { data: notifications = [] } = useNotifications(!!session?.user?.id)
+  const markReadMutation = useMarkNotificationRead()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/30 bg-background/80 backdrop-blur-xl">

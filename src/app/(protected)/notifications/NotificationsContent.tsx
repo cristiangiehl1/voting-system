@@ -2,15 +2,16 @@
 
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
-import { ArrowLeft, Bell, CheckCheck, ExternalLink, Vote, Frown } from "lucide-react"
+import { ArrowLeft, Bell, CheckCheck, ExternalLink, Vote } from "lucide-react"
 import { toast } from "sonner"
-import { queryKeys } from "@/lib/query-keys"
-import { api } from "@/lib/api-client"
+import { useNotifications } from "@/hooks/queries/useNotifications"
+import { useNotificationCount } from "@/hooks/queries/useNotificationCount"
+import { useMarkNotificationRead } from "@/hooks/mutations/useMarkNotificationRead"
+import { useMarkAllNotificationsRead } from "@/hooks/mutations/useMarkAllNotificationsRead"
 import { formatDistanceToNow } from "@/lib/utils"
 
 const NOTIFICATION_ICONS: Record<string, string> = {
@@ -25,45 +26,17 @@ const NOTIFICATION_ICONS: Record<string, string> = {
 
 export function NotificationsContent() {
   const router = useRouter()
-  const queryClient = useQueryClient()
   const { data: session } = useSession()
 
-  const { data: notifications = [] } = useQuery({
-    queryKey: queryKeys.notifications,
-    queryFn: () => api.getMyNotifications(),
-    enabled: !!session?.user?.id,
-    refetchInterval: 15_000,
-  })
-
-  const { data: unreadCount = 0 } = useQuery({
-    queryKey: queryKeys.notificationCount,
-    queryFn: () => api.countUnreadNotifications(),
-    enabled: !!session?.user?.id,
-    refetchInterval: 15_000,
-  })
-
-  const markReadMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await api.markNotificationAsRead(id)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
-      queryClient.invalidateQueries({ queryKey: queryKeys.notificationCount })
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao marcar como lida"),
-  })
-
-  const markAllReadMutation = useMutation({
-    mutationFn: async () => {
-      await api.markAllNotificationsAsRead()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications })
-      queryClient.invalidateQueries({ queryKey: queryKeys.notificationCount })
-      toast.success("Todas as notificações marcadas como lidas")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao marcar como lidas"),
-  })
+  const { data: notifications = [] } = useNotifications(!!session?.user?.id)
+  const { data: unreadCount = 0 } = useNotificationCount(!!session?.user?.id)
+  const markReadMutation = useMarkNotificationRead(
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao marcar como lida")
+  )
+  const markAllReadMutation = useMarkAllNotificationsRead(
+    () => toast.success("Todas as notificações marcadas como lidas"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao marcar como lidas")
+  )
 
   if (!session) {
     return (

@@ -3,7 +3,6 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query"
 import {
   Users,
   ListChecks,
@@ -23,8 +22,9 @@ import { CardContent, CardHeader, CardTitle, CardDescription } from "@/component
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { CreateListDialog } from "@/components/CreateListDialog"
 import { PageTransition } from "@/components/PageTransition"
-import { queryKeys } from "@/lib/query-keys"
-import { api } from "@/lib/api-client"
+import { useLists } from "@/hooks/queries/useLists"
+import { usePublicLists } from "@/hooks/queries/usePublicLists"
+import { ListsSkeleton } from "@/components/skeletons/ListsSkeleton"
 
 function formatDate(date: Date | string | null) {
   if (!date) return null
@@ -45,19 +45,10 @@ export default function ListsPageContent() {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState("my-lists")
 
-  const { data: listsData, isPending: listsLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: queryKeys.lists,
-    queryFn: ({ pageParam }) => api.getMyListsPaginated(pageParam as string | undefined),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: !!session?.user?.id,
-  })
+  const { data: listsData, isPending: listsLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useLists(!!session?.user?.id)
   const lists = listsData?.pages?.flatMap(p => p.items) ?? []
 
-  const { data: publicListsData, isPending: publicListsLoading } = useQuery({
-    queryKey: queryKeys.publicLists,
-    queryFn: () => api.getPublicLists(),
-  })
+  const { data: publicListsData, isPending: publicListsLoading } = usePublicLists()
   const publicLists = publicListsData ?? []
 
   const ownedLists = lists.filter((l) => l.createdById === session?.user?.id)
@@ -103,18 +94,7 @@ export default function ListsPageContent() {
 
           <TabsContent value="my-lists">
             {listsLoading ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="animate-pulse rounded-xl border border-border bg-card">
-                    <div className="h-48 rounded-t-xl bg-muted" />
-                    <div className="space-y-3 p-4">
-                      <div className="h-5 w-2/3 rounded bg-muted" />
-                      <div className="h-4 w-1/2 rounded bg-muted" />
-                      <div className="h-4 w-full rounded bg-muted" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ListsSkeleton />
             ) : lists.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <ListChecks className="mb-4 h-12 w-12 text-muted-foreground" />
@@ -169,18 +149,7 @@ export default function ListsPageContent() {
 
           <TabsContent value="explore">
             {publicListsLoading ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="animate-pulse rounded-xl border border-border bg-card">
-                    <div className="h-48 rounded-t-xl bg-muted" />
-                    <div className="space-y-3 p-4">
-                      <div className="h-5 w-2/3 rounded bg-muted" />
-                      <div className="h-4 w-1/2 rounded bg-muted" />
-                      <div className="h-4 w-full rounded bg-muted" />
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <ListsSkeleton />
             ) : publicLists.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <Globe className="mb-4 h-12 w-12 text-muted-foreground" />

@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQueryClient } from "@tanstack/react-query"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useSession } from "next-auth/react"
@@ -15,9 +15,9 @@ import { PageTransition } from "@/components/PageTransition"
 import { ListChecks, Users, Vote, ArrowLeft, Camera, Loader2, Check } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { api } from "@/lib/api-client"
-import { queryKeys } from "@/lib/query-keys"
 import { updateProfileSchema, type UpdateProfileData } from "@/lib/schemas"
+import { useUpdateName } from "@/hooks/mutations/useUpdateName"
+import { useUpdateAvatar } from "@/hooks/mutations/useUpdateAvatar"
 
 type ProfileStats = {
   createdLists: number
@@ -35,7 +35,6 @@ export function ProfileContent({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const queryClient = useQueryClient()
   const { update: updateSession } = useSession()
 
   const nameForm = useForm<UpdateProfileData>({
@@ -47,29 +46,21 @@ export function ProfileContent({
     nameForm.reset({ name: user.name ?? "" })
   }, [user.name, nameForm])
 
-  const updateNameMutation = useMutation({
-    mutationFn: async (data: UpdateProfileData) => {
-      await api.updateUserProfile({ name: data.name })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists })
+  const updateNameMutation = useUpdateName(
+    () => {
       updateSession()
       toast.success("Nome atualizado")
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar nome"),
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar nome"),
+  )
 
-  const updateAvatarMutation = useMutation({
-    mutationFn: async (data: { imageId: string | null; imageUrl: string | null }) => {
-      await api.updateUserProfile(data)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.lists })
+  const updateAvatarMutation = useUpdateAvatar(
+    () => {
       updateSession()
       toast.success("Foto atualizada")
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar foto"),
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao atualizar foto"),
+  )
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -148,7 +139,7 @@ export function ProfileContent({
           </div>
 
           <form
-            onSubmit={nameForm.handleSubmit((data) => updateNameMutation.mutate(data))}
+            onSubmit={nameForm.handleSubmit((data) => updateNameMutation.mutate(data.name))}
             className="mx-auto mt-6 flex max-w-xs items-end gap-2"
           >
             <div className="flex-1 space-y-1">

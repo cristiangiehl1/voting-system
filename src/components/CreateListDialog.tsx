@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useRouter } from "next/navigation"
-import { useMutation } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sparkles } from "lucide-react"
 import { toast } from "sonner"
 import { createListSchema, type CreateListData } from "@/lib/schemas"
+import { useCreateList } from "@/hooks/mutations/useCreateList"
 
 type Props = {
   open?: boolean
@@ -37,30 +37,15 @@ export function CreateListDialog({ open, onOpenChange }: Props) {
     },
   })
 
-  const createMutation = useMutation({
-    mutationFn: async (data: CreateListData & { imageId?: string; imageUrl?: string }) => {
-      return api.createList({
-        name: data.name,
-        description: data.description || undefined,
-        expiresAt: data.expiresAt || undefined,
-        revealVotes: data.revealVotes,
-        allowMultipleVotes: data.allowMultipleVotes,
-        rankedVoting: data.rankedVoting,
-        maxRank: data.maxRank,
-        allowParticipantsToAddOptions: data.allowParticipantsToAddOptions,
-        isPublic: data.isPublic,
-        imageId: data.imageId,
-        imageUrl: data.imageUrl,
-      })
-    },
-    onSuccess: (listId) => {
+  const createMutation = useCreateList(
+    (listId) => {
       form.reset()
       onOpenChange?.(false)
       toast.success("Lista criada com sucesso")
       router.push(`/lists/${listId}`)
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao criar lista"),
-  })
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao criar lista"),
+  )
 
   const rankedVoting = form.watch("rankedVoting")
   const allowMultipleVotes = form.watch("allowMultipleVotes")

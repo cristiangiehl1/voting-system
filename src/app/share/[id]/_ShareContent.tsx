@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
@@ -14,10 +13,15 @@ import {
   Trophy, Users, CalendarDays, ListOrdered, Share2, ExternalLink,
   Check, X, LogIn, Crown, Medal, ImageIcon, Loader2, ArrowLeft,
 } from "lucide-react"
-import { api } from "@/lib/api-client"
 import { AnimatedCard } from "@/components/AnimatedCard"
 import { PageTransition } from "@/components/PageTransition"
-import { queryKeys } from "@/lib/query-keys"
+import { usePublicList } from "@/hooks/queries/usePublicList"
+import { usePublicOptions } from "@/hooks/queries/usePublicOptions"
+import { useMyVotes } from "@/hooks/queries/useMyVotes"
+import { useVote } from "@/hooks/mutations/useVote"
+import { useRemoveVote } from "@/hooks/mutations/useRemoveVote"
+import { useSubmitRankedVotes } from "@/hooks/mutations/useSubmitRankedVotes"
+import { ShareSkeleton } from "@/components/skeletons/ShareSkeleton"
 
 const KNOWN_SITES: Record<string, string> = {
   "steampowered.com": "Steam",
@@ -77,26 +81,11 @@ export default function ShareContent() {
   const params = useParams()
   const router = useRouter()
   const { data: session } = useSession()
-  const queryClient = useQueryClient()
   const listId = params.id as string
 
-  const { data: list } = useQuery({
-    queryKey: queryKeys.publicList(listId),
-    queryFn: () => api.getPublicList(listId),
-    enabled: !!listId,
-  })
-
-  const { data: options = [] } = useQuery({
-    queryKey: queryKeys.publicOptions(listId),
-    queryFn: () => api.getPublicOptions(listId),
-    enabled: !!listId,
-  })
-
-  const { data: myVotes = [] } = useQuery({
-    queryKey: queryKeys.myVotes(listId),
-    queryFn: () => api.getMyVotes(listId),
-    enabled: !!listId && !!session?.user?.id,
-  })
+  const { data: list } = usePublicList(listId)
+  const { data: options = [] } = usePublicOptions(listId)
+  const { data: myVotes = [] } = useMyVotes(listId, !!session?.user?.id)
 
   const expired = isExpired(list?.expiresAt ?? null)
   const canVote = !!session?.user?.id && !expired
@@ -160,44 +149,17 @@ export default function ShareContent() {
     return myVoteOptionIds.has(optionId)
   }
 
-  const voteMutation = useMutation({
-    mutationFn: async (optionId: string) => {
-      await api.vote(optionId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.publicOptions(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.myVotes(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.publicResults(listId) })
-      toast.success("Voto registrado")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao votar"),
-  })
+  const voteMutation = useVote(listId, true, undefined,
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao votar"),
+  )
 
-  const removeVoteMutation = useMutation({
-    mutationFn: async (optionId: string) => {
-      await api.removeVote(optionId)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.publicOptions(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.myVotes(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.publicResults(listId) })
-      toast.success("Voto removido")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover voto"),
-  })
+  const removeVoteMutation = useRemoveVote(listId, true, undefined,
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover voto"),
+  )
 
-  const submitRankedMutation = useMutation({
-    mutationFn: async (rankingsList: Array<{ optionId: string; rank: number }>) => {
-      await api.submitRankedVotes(listId, rankingsList)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.publicOptions(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.myVotes(listId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.publicResults(listId) })
-      toast.success("Ranking registrado")
-    },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Erro ao registrar ranking"),
-  })
+  const submitRankedMutation = useSubmitRankedVotes(listId, true, undefined,
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao registrar ranking"),
+  )
 
   const rankedVotesCount = Object.keys(rankings).length
   const canSubmitRanked = rankedVotesCount > 0
@@ -213,11 +175,7 @@ export default function ShareContent() {
   }
 
   if (!list) {
-    return (
-      <div className="container mx-auto px-4 py-10">
-        <div className="h-40 animate-pulse rounded-lg bg-muted" />
-      </div>
-    )
+    return <ShareSkeleton />
   }
 
   return (
