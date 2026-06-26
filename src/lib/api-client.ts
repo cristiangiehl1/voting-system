@@ -163,6 +163,8 @@ export const api = {
   getFriends: () => request<{ sent: any[]; received: any[] }>("/api/friends"),
   sendFriendRequest: (email: string) =>
     request("/api/friends", { method: "POST", body: JSON.stringify({ email }) }),
+  sendFriendRequestByUserId: (userId: string) =>
+    request("/api/friends", { method: "POST", body: JSON.stringify({ userId }) }),
   acceptFriendRequest: (friendId: string) =>
     request(`/api/friends/${friendId}/accept`, { method: "POST" }),
   rejectFriendRequest: (friendId: string) =>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { useQuery } from "@tanstack/react-query"
@@ -25,6 +25,9 @@ import {
   ImageIcon,
   Share2,
   ArrowRight,
+  UserPlus,
+  UserCheck,
+  Clock,
 } from "lucide-react"
 import { api } from "@/lib/api-client"
 import { AnimatedCard } from "@/components/AnimatedCard"
@@ -43,6 +46,9 @@ import { useUpdateOption } from "@/hooks/mutations/useUpdateOption"
 import { useRemoveOption } from "@/hooks/mutations/useRemoveOption"
 import { useSubmitRankedVotes } from "@/hooks/mutations/useSubmitRankedVotes"
 import { useCancelInvite } from "@/hooks/mutations/useCancelInvite"
+import { useFriends } from "@/hooks/queries/useFriends"
+import { useSendFriendRequestByUserId } from "@/hooks/mutations/useSendFriendRequestByUserId"
+import { useAcceptFriendRequest } from "@/hooks/mutations/useAcceptFriendRequest"
 import { ListSkeleton } from "@/components/skeletons/ListSkeleton"
 import { SettingsDialog } from "./_SettingsDialog"
 import { OptionDialog } from "./_OptionDialog"
@@ -142,6 +148,40 @@ export default function ListPageContent() {
   const removeParticipantMutation = useRemoveParticipant(listId,
     () => toast.success("Participante removido"),
     (error) => toast.error(error instanceof Error ? error.message : "Erro ao remover participante"),
+  )
+
+  const { data: friendshipsData } = useFriends(!!session?.user?.id)
+
+  const friendshipMap = useMemo(() => {
+    const map = new Map<string, { status: "ACCEPTED" | "PENDING_FROM_ME" | "PENDING_TO_ME"; friendId: string }>()
+    const sent = friendshipsData?.sent ?? []
+    const received = friendshipsData?.received ?? []
+    for (const f of sent) {
+      const uid = f.addressee?.id ?? f.addresseeId
+      map.set(uid, {
+        status: f.status === "ACCEPTED" ? "ACCEPTED" : "PENDING_FROM_ME",
+        friendId: f.id,
+      })
+    }
+    for (const f of received) {
+      const uid = f.requester?.id ?? f.requesterId
+      if (map.has(uid)) continue
+      map.set(uid, {
+        status: f.status === "ACCEPTED" ? "ACCEPTED" : "PENDING_TO_ME",
+        friendId: f.id,
+      })
+    }
+    return map
+  }, [friendshipsData])
+
+  const sendFriendMutation = useSendFriendRequestByUserId(
+    () => toast.success("Pedido de amizade enviado!"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao enviar pedido"),
+  )
+
+  const acceptFriendMutation = useAcceptFriendRequest(
+    () => toast.success("Pedido de amizade aceito!"),
+    (error) => toast.error(error instanceof Error ? error.message : "Erro ao aceitar pedido"),
   )
 
   const voteMutation = useVote(listId, false,
@@ -749,32 +789,71 @@ export default function ListPageContent() {
                 </div>
               </div>
 
-              {participants.map((participant) => (
-                <div key={participant.id} className="flex items-center justify-between rounded-xl bg-card p-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar size="sm">
-                      {participant.user.imageUrl ? <AvatarImage src={participant.user.imageUrl} alt={participant.user.name ?? ""} /> : null}
-                      <AvatarFallback className="text-xs">{getInitials(participant.user.name ?? "?")}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">{participant.user.name}</p>
-                      <p className="text-xs text-muted-foreground">{participant.user.email}</p>
+              {participants.map((participant) => {
+                const friendship = friendshipMap.get(participant.user.id)
+                const isSelf = participant.user.id === session?.user?.id
+                return (
+                  <div key={participant.id} className="flex items-center justify-between rounded-xl bg-card p-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar size="sm">
+                        {participant.user.imageUrl ? <AvatarImage src={participant.user.imageUrl} alt={participant.user.name ?? ""} /> : null}
+                        <AvatarFallback className="text-xs">{getInitials(participant.user.name ?? "?")}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{participant.user.name}</p>
+                        <p className="text-xs text-muted-foreground">{participant.user.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {!isSelf && (
+                        friendship?.status === "ACCEPTED" ? (
+                          <Button variant="outline" size="sm" disabled className="cursor-default">
+                            <UserCheck className="mr-1 h-4 w-4" />
+                            Amigos
+                          </Button>
+                        ) : friendship?.status === "PENDING_FROM_ME" ? (
+                          <Button variant="outline" size="sm" disabled className="cursor-default">
+                            <Clock className="mr-1 h-4 w-4" />
+                            Enviado
+                          </Button>
+                        ) : friendship?.status === "PENDING_TO_ME" ? (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => acceptFriendMutation.mutate(friendship.friendId)}
+                            disabled={acceptFriendMutation.isPending}
+                          >
+                            <UserPlus className="mr-1 h-4 w-4" />
+                            Aceitar
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => sendFriendMutation.mutate(participant.user.id)}
+                            disabled={sendFriendMutation.isPending}
+                          >
+                            <UserPlus className="mr-1 h-4 w-4" />
+                            Seguir
+                          </Button>
+                        )
+                      )}
+                      {isOwner && !isSelf && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeParticipantMutation.mutate(participant.id)}
+                          disabled={removeParticipantMutation.isPending}
+                          className="text-destructive"
+                        >
+                          <X className="mr-1 h-4 w-4" />
+                          Remover
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  {isOwner && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeParticipantMutation.mutate(participant.id)}
-                      disabled={removeParticipantMutation.isPending}
-                      className="text-destructive"
-                    >
-                      <X className="mr-1 h-4 w-4" />
-                      Remover
-                    </Button>
-                  )}
-                </div>
-              ))}
+                )
+              })}
 
               {invites.length > 0 && (
                 <div className="mt-6">

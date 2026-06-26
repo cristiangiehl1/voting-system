@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { auth } from "@/lib/auth"
-import { findUserByEmail } from "@/lib/repositories/user.repository"
+import { findUserByEmail, findUserById } from "@/lib/repositories/user.repository"
 import { findFriendshipsByUserId, findFriendshipByUsers, createFriendRequest, resendFriendRequest } from "@/lib/repositories/friend.repository"
 import { createNotification } from "@/lib/repositories/notification.repository"
 import { sendFriendRequestSchema } from "@/lib/schemas/friendship"
@@ -27,7 +27,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
   }
 
-  const targetUser = await findUserByEmail(parsed.data.email)
+  let targetUser
+  if (parsed.data.userId) {
+    targetUser = await findUserById(parsed.data.userId)
+  } else if (parsed.data.email) {
+    targetUser = await findUserByEmail(parsed.data.email)
+  }
+
   if (!targetUser) {
     return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 })
   }
