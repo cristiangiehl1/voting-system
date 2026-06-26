@@ -9,19 +9,13 @@ class ApiError extends Error {
   }
 }
 
-function getBaseUrl(): string {
-  if (typeof window !== "undefined") return ""
-  return process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-}
-
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const baseUrl = getBaseUrl()
   const headers: Record<string, string> = {}
   if (options?.body && !(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json"
   }
 
-  const res = await fetch(`${baseUrl}${url}`, {
+  const res = await fetch(url, {
     headers: { ...headers, ...options?.headers as Record<string, string> },
     ...options,
   })
@@ -122,6 +116,7 @@ export const api = {
   getMyVotingHistory: () => request<any[]>("/api/voting-history"),
   updateUserProfile: (data: { name?: string; imageId?: string | null; imageUrl?: string | null }) =>
     request("/api/profile", { method: "PUT", body: JSON.stringify(data) }),
+  getProfile: () => request<{ user: { id: string; name: string | null; email: string | null; imageUrl: string | null }; stats: { createdLists: number; participatingLists: number; votes: number } } | null>("/api/profile"),
 
   registerUser: (name: string, email: string, password: string) =>
     request<{ error?: string; success?: boolean; email?: string }>("/api/auth/register", {

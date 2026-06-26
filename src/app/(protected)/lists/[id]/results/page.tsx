@@ -1,6 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { serverApi } from "@/lib/server-api"
+import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import ResultsPageContent from "./_ResultsContent"
 
@@ -12,7 +12,7 @@ export default async function ResultsPage({
   const { id } = await params
   const queryClient = new QueryClient()
 
-  const list = await serverApi.getList(id)
+  const list = await api.getList(id)
 
   await Promise.all([
     queryClient.prefetchQuery({
@@ -21,7 +21,7 @@ export default async function ResultsPage({
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.results(id),
-      queryFn: () => serverApi.getResults(id),
+      queryFn: () => api.getResults(id),
     }),
   ])
 

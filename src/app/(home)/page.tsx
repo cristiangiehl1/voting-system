@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth"
 import { HomeContent } from "./HomeContent"
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { serverApi } from "@/lib/server-api"
+import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 
 export default async function HomePage() {
@@ -11,7 +11,7 @@ export default async function HomePage() {
 
   await queryClient.prefetchQuery({
     queryKey: queryKeys.publicLists,
-    queryFn: () => serverApi.getPublicLists(),
+    queryFn: () => api.getPublicLists(),
   })
 
   return (

@@ -1,6 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { serverApi } from "@/lib/server-api"
+import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import InvitesPageContent from "./_InvitesContent"
 
@@ -9,7 +9,7 @@ export default async function InvitesPage() {
 
   queryClient.prefetchQuery({
     queryKey: queryKeys.myInvites,
-    queryFn: () => serverApi.getMyInvites(),
+    queryFn: () => api.getMyInvites(),
   })
 
   return (

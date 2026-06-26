@@ -1,6 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { serverApi } from "@/lib/server-api"
+import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import { notFound } from "next/navigation"
 import ShareResultsContent from "./_ShareResultsContent"
@@ -13,7 +13,7 @@ export default async function ShareResultsPage({
   const { id } = await params
   const queryClient = new QueryClient()
 
-  const list = await serverApi.getPublicList(id)
+  const list = await api.getPublicList(id)
   if (!list) notFound()
 
   await Promise.all([
@@ -23,7 +23,7 @@ export default async function ShareResultsPage({
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.publicResults(id),
-      queryFn: () => serverApi.getPublicResults(id),
+      queryFn: () => api.getPublicResults(id),
     }),
   ])
 

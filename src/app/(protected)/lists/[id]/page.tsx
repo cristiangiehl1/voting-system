@@ -1,7 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { serverApi } from "@/lib/server-api"
-import { auth } from "@/lib/auth"
+import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import ListPageContent from "./_ListContent"
 
@@ -13,7 +12,7 @@ export default async function ListPage({
   const { id } = await params
   const queryClient = new QueryClient()
 
-  const list = await serverApi.getList(id)
+  const list = await api.getList(id)
 
   await Promise.all([
     queryClient.prefetchQuery({
@@ -22,16 +21,16 @@ export default async function ListPage({
     }),
     queryClient.prefetchInfiniteQuery({
       queryKey: queryKeys.options(id),
-      queryFn: ({ pageParam }) => serverApi.getOptionsPaginated(id, pageParam as string | undefined),
+      queryFn: ({ pageParam }) => api.getOptionsPaginated(id, pageParam as string | undefined),
       initialPageParam: undefined as string | undefined,
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.participants(id),
-      queryFn: () => serverApi.getParticipants(id),
+      queryFn: () => api.getParticipants(id),
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.myVotes(id),
-      queryFn: () => serverApi.getMyVotes(id),
+      queryFn: () => api.getMyVotes(id),
     }),
   ])
 

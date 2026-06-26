@@ -1,6 +1,6 @@
 import { HydrationBoundary, dehydrate } from "@tanstack/react-query"
 import { QueryClient } from "@tanstack/react-query"
-import { serverApi } from "@/lib/server-api"
+import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import { notFound } from "next/navigation"
 import ShareContent from "./_ShareContent"
@@ -13,7 +13,7 @@ export default async function SharePage({
   const { id } = await params
   const queryClient = new QueryClient()
 
-  const list = await serverApi.getPublicList(id)
+  const list = await api.getPublicList(id)
   if (!list) notFound()
 
   await Promise.all([
@@ -23,11 +23,11 @@ export default async function SharePage({
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.publicOptions(id),
-      queryFn: () => serverApi.getPublicOptions(id),
+      queryFn: () => api.getPublicOptions(id),
     }),
     queryClient.prefetchQuery({
       queryKey: queryKeys.myVotes(id),
-      queryFn: () => serverApi.getMyVotes(id),
+      queryFn: () => api.getMyVotes(id),
     }),
   ])
 
