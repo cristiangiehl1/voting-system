@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Scale, LogOut, UserCircle, ListChecks, Mail, Bell, History } from "lucide-react"
+import { Scale, LogOut, UserCircle, ListChecks, Mail, Bell, History, UserPlus } from "lucide-react"
 import { formatDistanceToNow } from "@/lib/utils"
 import { useNotifications } from "@/hooks/queries/useNotifications"
 import { useNotificationCount } from "@/hooks/queries/useNotificationCount"
@@ -27,6 +27,9 @@ const NOTIFICATION_ICONS: Record<string, string> = {
   OPTION_ADDED: "➕",
   OPTION_REMOVED: "➖",
   LIST_DELETED: "🗑️",
+  FRIEND_REQUEST_RECEIVED: "👤",
+  FRIEND_REQUEST_ACCEPTED: "🤝",
+  FRIEND_REQUEST_REJECTED: "💔",
 }
 
 export function Header() {
@@ -148,6 +151,13 @@ export function Header() {
                   >
                     <ListChecks className="h-4 w-4 shrink-0" />
                     Minhas listas
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push("/friends")}
+                    className="gap-2.5"
+                  >
+                    <UserPlus className="h-4 w-4 shrink-0" />
+                    Amigos
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => router.push("/invites")}

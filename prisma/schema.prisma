@@ -25,9 +25,18 @@ model User {
   participations Participant[]
   votes         Vote[]        @relation("Voter")
   notifications Notification[]
+
+  sentFriendships     Friend[] @relation("SentFriendships")
+  receivedFriendships Friend[] @relation("ReceivedFriendships")
 }
 
 enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum FriendStatus {
   PENDING
   ACCEPTED
   REJECTED
@@ -41,6 +50,9 @@ enum NotificationType {
   OPTION_ADDED
   OPTION_REMOVED
   LIST_DELETED
+  FRIEND_REQUEST_RECEIVED
+  FRIEND_REQUEST_ACCEPTED
+  FRIEND_REQUEST_REJECTED
 }
 
 model VotingList {
@@ -125,6 +137,22 @@ model Vote {
 
   @@unique([voterId, optionId])
   @@index([optionId])
+}
+
+model Friend {
+  id          String       @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status      FriendStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  requester User @relation("SentFriendships", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee User @relation("ReceivedFriendships", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
 }
 
 model Notification {

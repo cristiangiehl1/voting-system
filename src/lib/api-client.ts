@@ -154,6 +154,16 @@ export const api = {
   getPublicList: (id: string) => request<any | null>(`/api/share/${id}`),
   getPublicOptions: (listId: string) => request<any[]>(`/api/share/${listId}/options`),
   getPublicResults: (listId: string) => request<any[]>(`/api/share/${listId}/results`),
+
+  getFriends: () => request<{ sent: any[]; received: any[] }>("/api/friends"),
+  sendFriendRequest: (email: string) =>
+    request("/api/friends", { method: "POST", body: JSON.stringify({ email }) }),
+  acceptFriendRequest: (friendId: string) =>
+    request(`/api/friends/${friendId}/accept`, { method: "POST" }),
+  rejectFriendRequest: (friendId: string) =>
+    request(`/api/friends/${friendId}/reject`, { method: "POST" }),
+  removeFriend: (friendId: string) =>
+    request(`/api/friends/${friendId}`, { method: "DELETE" }),
 }
 
 export { ApiError }
