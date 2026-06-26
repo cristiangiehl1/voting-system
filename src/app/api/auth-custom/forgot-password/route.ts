@@ -28,8 +28,8 @@ export async function POST(req: Request) {
 
   try {
     await sendResetPasswordEmail(email, user.name || "usuário", token)
-  } catch {
-    return NextResponse.json({ error: "Erro ao enviar email de recuperação" }, { status: 500 })
+  } catch (error) {
+    console.error("Erro ao enviar email de recuperação:", error)
   }
 
   return NextResponse.json({ success: true })

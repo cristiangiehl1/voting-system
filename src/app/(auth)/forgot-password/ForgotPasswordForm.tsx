@@ -1,69 +1,31 @@
 "use client"
 
-import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Scale, Mail, ArrowLeft } from "lucide-react"
+import { Scale, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 import { PageTransition } from "@/components/PageTransition"
 import { forgotPasswordSchema, type ForgotPasswordData } from "@/lib/schemas"
 import { api } from "@/lib/api-client"
 
 export function ForgotPasswordForm() {
-  const [sent, setSent] = useState(false)
-  const [sentEmail, setSentEmail] = useState("")
+  const router = useRouter()
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ForgotPasswordData>({
     resolver: zodResolver(forgotPasswordSchema),
   })
 
-  async function onSubmit(data: ForgotPasswordData) {
-    const result = await api.forgotPassword(data.email)
-    if (result.error) {
-      toast.error(result.error)
-      return
-    }
-
-    setSentEmail(data.email)
-    setSent(true)
-    toast.success("Email enviado! Verifique sua caixa de entrada.")
-  }
-
-  if (sent) {
-    return (
-      <PageTransition>
-        <div className="container mx-auto flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
-          <Card className="w-full max-w-md border-border/50 bg-card/80 backdrop-blur">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent ring-1 ring-primary/30">
-                <Mail className="h-8 w-8 text-white" />
-              </div>
-              <CardTitle className="text-2xl font-bold">Email enviado!</CardTitle>
-              <CardDescription>
-                Enviamos um link de redefinição para <strong>{sentEmail}</strong>
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <p className="text-sm text-muted-foreground">
-                Clique no link enviado para criar uma nova senha. O link expira em 1 hora.
-              </p>
-              <div className="mt-6 flex flex-col gap-3">
-                <Link href="/login">
-                  <Button variant="outline" className="w-full">
-                    Voltar para o login
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </PageTransition>
-    )
+  async function onSubmit(_data: ForgotPasswordData) {
+    await api.forgotPassword(_data.email)
+    toast.success("Se o email existir, você receberá um link de recuperação.")
+    router.push("/")
+    router.refresh()
   }
 
   return (
